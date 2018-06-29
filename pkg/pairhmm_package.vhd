@@ -19,15 +19,8 @@ use work.pe_package.all;
 
 package pairhmm_package is
 
-  constant PAIRHMM_MAX_SIZE                : natural := 512;
-  constant PAIRHMM_NUM_PES                 : natural := 16;
-  constant PAIRHMM_BITS_PER_PROB           : natural := 8 * PE_DW;
-
-  type bp_array_type is array (0 to PAIRHMM_MAX_SIZE-1) of bp_type;
-  constant bp_array_empty : bp_array_type := (others => BP_IGNORE);
-
-  type bp_all_type is array (0 to PE_DEPTH-1) of bp_array_type;
-  constant bp_all_empty : bp_all_type := (others => bp_array_empty);
+  constant PAIRHMM_NUM_PES       : natural := 16;
+  constant PAIRHMM_BITS_PER_PROB : natural := 8 * PE_DW;
 
   type x_array_type is array (0 to PAIRHMM_NUM_PES - 1) of bp_type;
   constant x_array_empty : x_array_type := (others => BP_IGNORE);
