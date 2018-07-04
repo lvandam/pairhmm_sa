@@ -22,6 +22,7 @@ package wed is
 
     padded_size : unsigned(31 downto 0);
     batches     : unsigned(31 downto 0);
+    batches_total : unsigned(31 downto 0);
 
     wed05 : std_logic_vector(63 downto 0);
     wed06 : std_logic_vector(63 downto 0);
@@ -57,6 +58,7 @@ package body wed is
 
     wed.padded_size := usign(data(287 downto 256));
     wed.batches     := usign(data(319 downto 288));
+    wed.batches     := (others => '0');
 
     wed.wed05 := data(383 downto 320);
     wed.wed06 := data(447 downto 384);
