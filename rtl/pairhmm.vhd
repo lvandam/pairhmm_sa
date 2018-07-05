@@ -55,12 +55,13 @@ architecture logic of pairhmm is
 
   signal res_acc : prob;
 
-  type res_array is array (0 to PAIRHMM_NUM_PES-1) of prob;
+  type res_array is array (0 to PAIRHMM_NUM_PES-1) of value;
 
   signal res_rst : std_logic;
   signal resm    : res_array;
   signal resi    : res_array;
 
+  signal resbusm_raw_es3, resbusi_raw_es3 : value_es3;
   signal resbusm, resbusi : prob;
 
   signal lastlast  : std_logic;
@@ -212,6 +213,7 @@ begin
     end if;
   end process;
 
+
 ---------------------------------------------------------------------------------------------------
 --  _____                 _ _                                            _       _
 -- |  __ \               | | |       /\                                 | |     | |
@@ -221,47 +223,65 @@ begin
 -- |_|  \_\___||___/\__,_|_|\__| /_/    \_\___\___|\__,_|_| |_| |_|\__,_|_|\__,_|\__\___/|_|
 ---------------------------------------------------------------------------------------------------
 
+-- POSIT NORMALIZATION
+gen_normalize_es3 : if POSIT_ES = 3 generate
+        posit_normalize_ml_es3 : posit_normalize_es3 port map (
+            in1 => resbusm_raw_es3,
+            result => resbusm,
+            inf => open,
+            zero => open
+        );
+        posit_normalize_il_es3 : posit_normalize_es3 port map (
+            in1 => resbusi_raw_es3,
+            result => resbusi,
+            inf => open,
+            zero => open
+        );
+end generate;
+
   -- Result bus
-  process(cr.clk)
-    variable vbusm : prob;
-    variable vbusi : prob;
-  begin
-    if rising_edge(cr.clk) then
-      -- Go over all PEs
-      for K in 0 to PAIRHMM_NUM_PES-1 loop
-        -- If its output is at the bottom
-        if (pe_outs(K).cell = PE_BOTTOM    -- add when it's bottom PE
-            or pe_outs(K).cell = PE_LAST)  -- or last PE
-          and pe_outs(K).y /= BP_STOP  -- but not when the PE is bypassing in the horizontal direction
-        then
-          resm(K) <= pe_outs(K).mids.ml;
-          resi(K) <= pe_outs(K).mids.il;
-        else
-          resm(K) <= (others => '0');
-          resi(K) <= (others => '0');
+  res_bus_es3 : if POSIT_ES = 3 generate
+      process(cr.clk)
+        variable vbusm : value_es3;
+        variable vbusi : value_es3;
+      begin
+        if rising_edge(cr.clk) then
+          -- Go over all PEs
+          for K in 0 to PAIRHMM_NUM_PES-1 loop
+            -- If its output is at the bottom
+            if (pe_outs(K).cell = PE_BOTTOM    -- add when it's bottom PE
+                or pe_outs(K).cell = PE_LAST)  -- or last PE
+              and pe_outs(K).y /= BP_STOP  -- but not when the PE is bypassing in the horizontal direction
+            then
+              resm(K) <= pe_outs(K).mids.ml;
+              resi(K) <= pe_outs(K).mids.il;
+            else
+              resm(K) <= value_es3_empty;
+              resi(K) <= value_es3_empty;
+            end if;
+          end loop;
+
+          -- OR everything, latency is 1
+          vbusm := value_es3_empty;
+          vbusi := value_es3_empty;
+          for K in 0 to PAIRHMM_NUM_PES-1 loop
+            vbusm := vbusm or resm(K);
+            vbusi := vbusi or resi(K);
+          end loop;
+
+          -- Place on bus, latency is 2
+          resbusm_raw_es3 <= vbusm;
+          resbusi_raw_es3 <= vbusi;
+
+          -- Check if last PE is at last cell update
+          if pe_outs(PAIRHMM_NUM_PES-1).cell = PE_LAST then lastlast <= '1';
+          else lastlast                                              <= '0';
+          end if;
+
+          lastlast1 <= lastlast;            -- match latency of 2
         end if;
-      end loop;
-
-      -- OR everything, latency is 1
-      vbusm := (others => '0');
-      vbusi := (others => '0');
-      for K in 0 to PAIRHMM_NUM_PES-1 loop
-        vbusm := vbusm or resm(K);
-        vbusi := vbusi or resi(K);
-      end loop;
-
-      -- Place on bus, latency is 2
-      resbusm <= vbusm;
-      resbusi <= vbusi;
-
-      -- Check if last PE is at last cell update
-      if pe_outs(PAIRHMM_NUM_PES-1).cell = PE_LAST then lastlast <= '1';
-      else lastlast                                              <= '0';
-      end if;
-
-      lastlast1 <= lastlast;            -- match latency of 2
-    end if;
-  end process;
+      end process;
+end generate;
 
 
   gen_accumulator_wide : if POSIT_WIDE_ACCUMULATOR = 1 generate
@@ -275,7 +295,10 @@ begin
     signal i_valid_delay : std_logic_vector(5 * PE_ADD_CYCLES - 1 downto 0);
 
     signal acc : acc_state_wide := resetting;
+
+    signal addm_addi_valid : std_logic;
   begin
+      addm_addi_valid <= addm_out_valid and addi_out_valid;
     gen_es2_add : if POSIT_ES = 2 generate
       resaccum_m : positaccum_16 port map (
         clk    => cr.clk,
@@ -297,11 +320,12 @@ begin
         done   => addi_out_valid
         );
 
+
       resaccum : positadd_4 port map (
         clk    => cr.clk,
         in1    => i_delay(4 * PE_ADD_CYCLES - 1),
         in2    => addm_out,
-        start  => addm_out_valid and addi_out_valid,
+        start  => addm_addi_valid,
         result => resaccum_out,
         inf    => posit_infs(2),
         done   => resaccum_out_valid
@@ -333,7 +357,7 @@ begin
         clk    => cr.clk,
         in1    => i_delay(4 * PE_ADD_CYCLES - 1),
         in2    => addm_out,
-        start  => addm_out_valid and addi_out_valid,
+        start  => addm_addi_valid,
         result => resaccum_out,
         inf    => posit_infs(2),
         done   => resaccum_out_valid
@@ -421,14 +445,18 @@ begin
     signal i_valid_delay : std_logic_vector(2 * PE_ADD_CYCLES - 1 downto 0);
 
     signal acc : acc_state := resetting;
+
+    signal addm_a_b_valid, addi_a_b_valid : std_logic;
   begin
+      addm_a_b_valid <= addm_ina_valid and addm_inb_valid;
+      addi_a_b_valid <= addi_ina_valid and addi_inb_valid;
 
     gen_es2_add : if POSIT_ES = 2 generate
       add_m : positadd_8 port map (
         clk    => cr.clk,
         in1    => addm_ina,
         in2    => addm_inb,
-        start  => addm_ina_valid and addm_inb_valid,
+        start  => addm_a_b_valid,
         result => addm_out,
         inf    => posit_infs(0),
         done   => addm_out_valid
@@ -437,7 +465,7 @@ begin
         clk    => cr.clk,
         in1    => addi_ina,
         in2    => addi_inb,
-        start  => addi_ina_valid and addi_inb_valid,
+        start  => addi_a_b_valid,
         result => addi_out,
         inf    => posit_infs(1),
         done   => addi_out_valid
@@ -449,7 +477,7 @@ begin
         clk    => cr.clk,
         in1    => addm_ina,
         in2    => addm_inb,
-        start  => addm_ina_valid and addm_inb_valid,
+        start  => addm_a_b_valid,
         result => addm_out,
         inf    => posit_infs(0),
         done   => addm_out_valid
@@ -458,7 +486,7 @@ begin
         clk    => cr.clk,
         in1    => addi_ina,
         in2    => addi_inb,
-        start  => addi_ina_valid and addi_inb_valid,
+        start  => addi_a_b_valid,
         result => addi_out,
         inf    => posit_infs(1),
         done   => addi_out_valid
