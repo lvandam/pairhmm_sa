@@ -18,7 +18,7 @@ use work.functions.all;
 package pe_package is
 
   constant POSIT_NBITS   : natural := 32;
-  constant POSIT_ES      : natural := 3;
+  constant POSIT_ES      : natural := 2;
   constant POSIT_WIDE_ACCUMULATOR : natural := 1; -- 0: dont use wide accumulator in pairhmm.vhd
 
   constant PE_DW         : natural := 32;               -- data width
