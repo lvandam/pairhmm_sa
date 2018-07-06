@@ -57,10 +57,6 @@ architecture rtl of pe is
   type add_gamma_sr_type is array (0 to PE_ADD_CYCLES - 1) of value_product;
   signal add_gamma_sr : add_gamma_sr_type := (others => value_product_empty);
 
-  -- type mul_sr_type is array (0 to PE_MUL_CYCLES - 1) of prob;
-  -- signal mul_theta_sr   : mul_sr_type := (others => (others => '0'));
-  -- signal mul_upsilon_sr : mul_sr_type := (others => (others => '0'));
-
   type mul_sr_type is array (0 to PE_MUL_CYCLES - 1) of value_sum;
   signal mul_theta_sr   : mul_sr_type := (others => value_sum_empty);
   signal mul_upsilon_sr : mul_sr_type := (others => value_sum_empty);
@@ -73,11 +69,6 @@ architecture rtl of pe is
   signal posit_infs  : posit_infs_type;
   signal posit_zeros : posit_zeros_type;
   signal fp_valids   : fp_valids_type;
-
-  -- signal mul_m_es3, mul_theta_es3, mul_i_es3, mul_upsilon_es3, mul_d_es3 : value;
-  -- signal val_almtl_es3, val_beitl_es3                                    : value;
-  -- signal val_albetl_es3, val_gamma_es3, val_demt_es3, val_epit_es3       : value;
-  -- signal val_zeml_es3, val_etdl_es3                                      : value;
 
 begin
   ---------------------------------------------------------------------------------------------------

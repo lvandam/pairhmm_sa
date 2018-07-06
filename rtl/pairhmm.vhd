@@ -256,17 +256,22 @@ end generate;
               resm(K) <= pe_outs(K).mids.ml;
               resi(K) <= pe_outs(K).mids.il;
             else
-              resm(K) <= value_es3_empty;
-              resi(K) <= value_es3_empty;
+              resm(K) <= value_empty;
+              resi(K) <= value_empty;
             end if;
           end loop;
 
           -- OR everything, latency is 1
-          vbusm := value_es3_empty;
-          vbusi := value_es3_empty;
+          vbusm := (others => '0');
+          vbusi := (others => '0');
           for K in 0 to PAIRHMM_NUM_PES-1 loop
-            vbusm := vbusm or resm(K);
-            vbusi := vbusi or resi(K);
+            if resm(K)(0) /= '1' then -- OR if nonzero
+              vbusm := vbusm or resm(K);
+            end if;
+
+              if resi(K)(0) /= '1' then -- OR if nonzero
+                vbusi := vbusi or resi(K);
+              end if;
           end loop;
 
           -- Place on bus, latency is 2

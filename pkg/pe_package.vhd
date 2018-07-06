@@ -41,13 +41,7 @@ package pe_package is
   constant POSIT_SERIALIZED_WIDTH_SUM_ES3     : natural := 1+9+30+1+1;
   constant POSIT_SERIALIZED_WIDTH_PRODUCT_ES3 : natural := 1+10+54+1+1;
 
-  subtype value_es3 is std_logic_vector(POSIT_SERIALIZED_WIDTH_ES3-1 downto 0);  --record
-  -- sgn     : std_logic;
-  -- scale    : std_logic_vector(8 downto 0);
-  -- fraction : std_logic_vector(25 downto 0);
-  -- inf      : std_logic;
-  -- zero     : std_logic;
-  -- end record;
+  subtype value_es3 is std_logic_vector(POSIT_SERIALIZED_WIDTH_ES3-1 downto 0);
 
   constant value_es3_empty : value_es3 := (POSIT_SERIALIZED_WIDTH_ES3-1 downto 1 => '0', others => '1');
   --(
@@ -214,6 +208,19 @@ package pe_package is
     distm_diff : prob;
     theta      : prob;
     upsilon    : prob;
+  end record;
+
+  type probabilities is record
+    distm_simi : std_logic_vector(31 downto 0);
+    distm_diff : std_logic_vector(31 downto 0);
+    theta      : std_logic_vector(31 downto 0);
+    upsilon    : std_logic_vector(31 downto 0);
+      alpha : std_logic_vector(31 downto 0);
+      beta  : std_logic_vector(31 downto 0);
+      delta   : std_logic_vector(31 downto 0);
+      epsilon : std_logic_vector(31 downto 0);
+      zeta : std_logic_vector(31 downto 0);
+      eta  : std_logic_vector(31 downto 0);
   end record;
 
   constant emis_empty : emissions := (
@@ -506,20 +513,20 @@ package pe_package is
 
   function pst2slv (a : in pe_cell_type) return std_logic_vector;
 
-  component posit_extract_raw_es3
-    port (
-      in1      : in  std_logic_vector(31 downto 0);
-      absolute : out std_logic_vector(30 downto 0);
-      result   : out std_logic_vector(POSIT_SERIALIZED_WIDTH_ES3-1 downto 0)
-      );
-  end component;
-
   component posit_normalize_sum_es3
     port (
       in1    : in  std_logic_vector(POSIT_SERIALIZED_WIDTH_SUM_ES3-1 downto 0);
       result : out std_logic_vector(POSIT_NBITS-1 downto 0);
       inf    : out std_logic;
       zero   : out std_logic
+      );
+  end component;
+
+  component posit_extract_raw_es3
+    port (
+      in1    : in  std_logic_vector(POSIT_NBITS-1 downto 0);
+      absolute : out std_logic_vector(31-1 downto 0);
+      result   : out std_logic_vector(POSIT_SERIALIZED_WIDTH_ES3-1 downto 0)
       );
   end component;
 
