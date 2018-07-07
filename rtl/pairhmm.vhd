@@ -62,7 +62,7 @@ architecture logic of pairhmm is
   signal resi    : res_array;
 
   signal resbusm_raw_es3, resbusi_raw_es3 : value_es3;
-  signal resbusm, resbusi : prob;
+  signal resbusm, resbusi                 : prob;
 
   signal lastlast  : std_logic;
   signal lastlast1 : std_logic;
@@ -224,69 +224,84 @@ begin
 ---------------------------------------------------------------------------------------------------
 
 -- POSIT NORMALIZATION
-gen_normalize_es3 : if POSIT_ES = 3 generate
-        posit_normalize_ml_es3 : posit_normalize_es3 port map (
-            in1 => resbusm_raw_es3,
-            result => resbusm,
-            inf => open,
-            zero => open
-        );
-        posit_normalize_il_es3 : posit_normalize_es3 port map (
-            in1 => resbusi_raw_es3,
-            result => resbusi,
-            inf => open,
-            zero => open
-        );
-end generate;
+  gen_normalize_es3 : if POSIT_ES = 3 generate
+    posit_normalize_ml_es3 : posit_normalize_es3 port map (
+      in1    => resbusm_raw_es3,
+      result => resbusm,
+      inf    => open,
+      zero   => open
+      );
+    posit_normalize_il_es3 : posit_normalize_es3 port map (
+      in1    => resbusi_raw_es3,
+      result => resbusi,
+      inf    => open,
+      zero   => open
+      );
+  end generate;
 
   -- Result bus
   res_bus_es3 : if POSIT_ES = 3 generate
-      process(cr.clk)
-        variable vbusm : value_es3;
-        variable vbusi : value_es3;
-      begin
-        if rising_edge(cr.clk) then
-          -- Go over all PEs
-          for K in 0 to PAIRHMM_NUM_PES-1 loop
-            -- If its output is at the bottom
-            if (pe_outs(K).cell = PE_BOTTOM    -- add when it's bottom PE
-                or pe_outs(K).cell = PE_LAST)  -- or last PE
-              and pe_outs(K).y /= BP_STOP  -- but not when the PE is bypassing in the horizontal direction
-            then
-              resm(K) <= pe_outs(K).mids.ml;
-              resi(K) <= pe_outs(K).mids.il;
-            else
-              resm(K) <= value_empty;
-              resi(K) <= value_empty;
-            end if;
-          end loop;
+    process(cr.clk)
+      variable vbusm                : value_es3;
+      variable vbusi                : value_es3;
+      variable m_nonzero, i_nonzero : std_logic := '0';
+    begin
+      if rising_edge(cr.clk) then
+        -- Go over all PEs
+        for K in 0 to PAIRHMM_NUM_PES-1 loop
+          -- If its output is at the bottom
+          if (pe_outs(K).cell = PE_BOTTOM    -- add when it's bottom PE
+              or pe_outs(K).cell = PE_LAST)  -- or last PE
+            and pe_outs(K).y /= BP_STOP  -- but not when the PE is bypassing in the horizontal direction
+          then
+            resm(K) <= pe_outs(K).mids.ml;
+            resi(K) <= pe_outs(K).mids.il;
+          else
+            resm(K) <= value_empty;
+            resi(K) <= value_empty;
+          end if;
+        end loop;
 
-          -- OR everything, latency is 1
-          vbusm := (others => '0');
-          vbusi := (others => '0');
-          for K in 0 to PAIRHMM_NUM_PES-1 loop
-            if resm(K)(0) /= '1' then -- OR if nonzero
-              vbusm := vbusm or resm(K);
-            end if;
+        -- OR everything, latency is 1
+        m_nonzero := '0';
+        i_nonzero := '0';
 
-              if resi(K)(0) /= '1' then -- OR if nonzero
-                vbusi := vbusi or resi(K);
-              end if;
-          end loop;
-
-          -- Place on bus, latency is 2
-          resbusm_raw_es3 <= vbusm;
-          resbusi_raw_es3 <= vbusi;
-
-          -- Check if last PE is at last cell update
-          if pe_outs(PAIRHMM_NUM_PES-1).cell = PE_LAST then lastlast <= '1';
-          else lastlast                                              <= '0';
+        vbusm := (others => '0');
+        vbusi := (others => '0');
+        for K in 0 to PAIRHMM_NUM_PES-1 loop
+          if resm(K)(0) /= '1' then     -- OR if nonzero
+            m_nonzero := '1';
+            vbusm     := vbusm or resm(K);
           end if;
 
-          lastlast1 <= lastlast;            -- match latency of 2
+          if resi(K)(0) /= '1' then     -- OR if nonzero
+            i_nonzero := '1';
+            vbusi     := vbusi or resi(K);
+          end if;
+        end loop;
+
+        -- Place on bus, latency is 2
+        if m_nonzero = '1' then
+          resbusm_raw_es3 <= vbusm;
+        else
+          resbusm_raw_es3 <= value_empty;
         end if;
-      end process;
-end generate;
+
+        if i_nonzero = '1' then
+          resbusi_raw_es3 <= vbusi;
+        else
+          resbusi_raw_es3 <= value_empty;
+        end if;
+
+        -- Check if last PE is at last cell update
+        if pe_outs(PAIRHMM_NUM_PES-1).cell = PE_LAST then lastlast <= '1';
+        else lastlast                                              <= '0';
+        end if;
+
+        lastlast1 <= lastlast;          -- match latency of 2
+      end if;
+    end process;
+  end generate;
 
 
   gen_accumulator_wide : if POSIT_WIDE_ACCUMULATOR = 1 generate
@@ -303,7 +318,7 @@ end generate;
 
     signal addm_addi_valid : std_logic;
   begin
-      addm_addi_valid <= addm_out_valid and addi_out_valid;
+    addm_addi_valid <= addm_out_valid and addi_out_valid;
     gen_es2_add : if POSIT_ES = 2 generate
       resaccum_m : positaccum_16 port map (
         clk    => cr.clk,
@@ -453,8 +468,8 @@ end generate;
 
     signal addm_a_b_valid, addi_a_b_valid : std_logic;
   begin
-      addm_a_b_valid <= addm_ina_valid and addm_inb_valid;
-      addi_a_b_valid <= addi_ina_valid and addi_inb_valid;
+    addm_a_b_valid <= addm_ina_valid and addm_inb_valid;
+    addi_a_b_valid <= addi_ina_valid and addi_inb_valid;
 
     gen_es2_add : if POSIT_ES = 2 generate
       add_m : positadd_8 port map (

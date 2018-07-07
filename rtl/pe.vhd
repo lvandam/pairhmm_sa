@@ -70,7 +70,10 @@ architecture rtl of pe is
   signal posit_zeros : posit_zeros_type;
   signal fp_valids   : fp_valids_type;
 
+  signal posit_norm : step_type := step_type_init;
+
 begin
+
   ---------------------------------------------------------------------------------------------------
   --    _____                   _
   --   |_   _|                 | |
@@ -102,43 +105,21 @@ begin
   -- All top inputs can be potentially zero when working on the first row of the matrix
 
   gen_inputs_es3 : if POSIT_ES = 3 generate
-
-    -- emult_m_out_es3 : posit_prod_to_value_es3 port map (
-    --   in1    => step_raw.emult.m,
-    --   result => mul_m_es3
-    --   );
-
     step_raw.init.mids.mt <= prod2val(step_raw.emult.m) when i.cell /= PE_TOP else value_empty;
 
     -- Initial Signal I depending on if Theta mult is Disabled is True
     ISTDT : if DISABLE_THETA = '1' generate
-      -- theta_out_es3 : posit_sum_to_value_es3 port map (
-      --   in1    => mul_theta_sr(PE_MUL_CYCLES-1),
-      --   result => mul_theta_es3
-      --   );
       step_raw.init.mids.it <= sum2val(mul_theta_sr(PE_MUL_CYCLES-1)) when i.cell /= PE_TOP else value_empty;
     end generate;
 
     ISTDF : if DISABLE_THETA /= '1' generate
-      -- i_out_es3 : posit_prod_to_value_es3 port map (
-      --   in1    => step_raw.emult.i,
-      --   result => mul_i_es3
-      --   );
       step_raw.init.mids.it <= prod2val(step_raw.emult.i) when i.cell /= PE_TOP else value_empty;
     end generate;
     -- Initial Signal D depending on if Upsilon mult is Disabled is True
     ISUDT : if DISABLE_UPSILON = '1' generate
-      -- upsilon_out_es3 : posit_sum_to_value_es3 port map (
-      --   in1    => mul_upsilon_sr(PE_MUL_CYCLES-1),
-      --   result => mul_upsilon_es3
-      --   );
       step_raw.init.mids.dt <= sum2val(mul_upsilon_sr(PE_MUL_CYCLES-1)) when i.cell /= PE_TOP else i.initial;
     end generate;
     ISUDF : if DISABLE_UPSILON /= '1' generate
-      -- d_out_es3 : posit_prod_to_value_es3 port map (
-      --   in1    => step_raw.emult.d,
-      --   result => mul_d_es3
-      --   );
       step_raw.init.mids.dt <= prod2val(step_raw.emult.d) when i.cell /= PE_TOP else i.initial;
     end generate;
   end generate;
@@ -365,14 +346,6 @@ begin
   --     );
   -- end generate;
   gen_es3_add_alpha_beta : if POSIT_ES = 3 generate
-    -- almtl_val_es3 : posit_prod_to_value_es3 port map (
-    --   in1    => step_raw.trans.almtl,
-    --   result => val_almtl_es3
-    --   );
-    -- beitl_val_es3 : posit_prod_to_value_es3 port map (
-    --   in1    => step_raw.trans.beitl,
-    --   result => val_beitl_es3
-    --   );
     add_alpha_beta : positadd_4_raw_es3 port map (
       clk    => cr.clk,
       in1    => prod2val(step_raw.trans.almtl),
@@ -397,14 +370,6 @@ begin
   --     );
   -- end generate;
   gen_es3_add_alpha_beta_gamma : if POSIT_ES = 3 generate
-    -- albetl_val_es3 : posit_sum_to_value_es3 port map (
-    --   in1    => step_raw.add.albetl,
-    --   result => val_albetl_es3
-    --   );
-    -- gamma_val_es3 : posit_prod_to_value_es3 port map (
-    --   in1    => add_gamma_sr(PE_ADD_CYCLES-1),
-    --   result => val_gamma_es3
-    --   );
     add_alpha_beta_gamma : positadd_4_raw_es3 port map (
       clk    => cr.clk,
       in1    => sum2val(step_raw.add.albetl),
@@ -430,14 +395,6 @@ begin
   --     );
   -- end generate;
   gen_es3_add_delta_epsilon : if POSIT_ES = 3 generate
-    -- demt_val_es3 : posit_prod_to_value_es3 port map (
-    --   in1    => step_raw.trans.demt,
-    --   result => val_demt_es3
-    --   );
-    -- epit_val_es3 : posit_prod_to_value_es3 port map (
-    --   in1    => step_raw.trans.epit,
-    --   result => val_epit_es3
-    --   );
     add_delta_epsilon : positadd_8_raw_es3 port map (
       clk    => cr.clk,
       in1    => prod2val(step_raw.trans.demt),
@@ -461,14 +418,6 @@ begin
   --     );
   -- end generate;
   gen_es3_add_zeta_eta : if POSIT_ES = 3 generate
-    -- zeml_val_es3 : posit_prod_to_value_es3 port map (
-    --   in1    => step_raw.trans.zeml,
-    --   result => val_zeml_es3
-    --   );
-    -- etdl_val_es3 : posit_prod_to_value_es3 port map (
-    --   in1    => step_raw.trans.etdl,
-    --   result => val_etdl_es3
-    --   );
     add_zeta_eta : positadd_8_raw_es3 port map (
       clk    => cr.clk,
       in1    => prod2val(step_raw.trans.zeml),
@@ -815,6 +764,147 @@ begin
   end process;
 
   o <= o_buf;
+
+  -- POSIT DEBUGGING
+  -- posit_normalize_ml_es31 : posit_normalize_es3 port map (
+  --   in1    => prod2val(step_raw.trans.almtl),
+  --   result => posit_norm.trans.almtl,
+  --   inf    => open,
+  --   zero   => open
+  --   );
+  -- posit_normalize_ml_es32 : posit_normalize_es3 port map (
+  --   in1    => prod2val(step_raw.trans.beitl),
+  --   result => posit_norm.trans.beitl,
+  --   inf    => open,
+  --   zero   => open
+  --   );
+  -- posit_normalize_ml_es33 : posit_normalize_es3 port map (
+  --   in1    => prod2val(step_raw.trans.gadtl),
+  --   result => posit_norm.trans.gadtl,
+  --   inf    => open,
+  --   zero   => open
+  --   );
+  -- posit_normalize_ml_es34 : posit_normalize_es3 port map (
+  --   in1    => prod2val(step_raw.trans.demt),
+  --   result => posit_norm.trans.demt,
+  --   inf    => open,
+  --   zero   => open
+  --   );
+  -- posit_normalize_ml_es35 : posit_normalize_es3 port map (
+  --   in1    => prod2val(step_raw.trans.epit),
+  --   result => posit_norm.trans.epit,
+  --   inf    => open,
+  --   zero   => open
+  --   );
+  -- posit_normalize_ml_es36 : posit_normalize_es3 port map (
+  --   in1    => prod2val(step_raw.trans.zeml),
+  --   result => posit_norm.trans.zeml,
+  --   inf    => open,
+  --   zero   => open
+  --   );
+  -- posit_normalize_ml_es37 : posit_normalize_es3 port map (
+  --   in1    => prod2val(step_raw.trans.etdl),
+  --   result => posit_norm.trans.etdl,
+  --   inf    => open,
+  --   zero   => open
+  --   );
+  -- posit_normalize_ml_es38 : posit_normalize_es3 port map (
+  --   in1    => sum2val(step_raw.add.albetl),
+  --   result => posit_norm.add.albetl,
+  --   inf    => open,
+  --   zero   => open
+  --   );
+  -- posit_normalize_ml_es39 : posit_normalize_es3 port map (
+  --   in1    => sum2val(step_raw.add.albegatl),
+  --   result => posit_norm.add.albegatl,
+  --   inf    => open,
+  --   zero   => open
+  --   );
+  -- posit_normalize_ml_es310 : posit_normalize_es3 port map (
+  --   in1    => sum2val(step_raw.add.deept),
+  --   result => posit_norm.add.deept,
+  --   inf    => open,
+  --   zero   => open
+  --   );
+  -- posit_normalize_ml_es311 : posit_normalize_es3 port map (
+  --   in1    => sum2val(step_raw.add.zeett),
+  --   result => posit_norm.add.zeett,
+  --   inf    => open,
+  --   zero   => open
+  --   );
+  -- posit_normalize_ml_es312 : posit_normalize_es3 port map (
+  --   in1    => prod2val(step_raw.emult.m),
+  --   result => posit_norm.emult.m,
+  --   inf    => open,
+  --   zero   => open
+  --   );
+  -- posit_normalize_ml_es313 : posit_normalize_es3 port map (
+  --   in1    => prod2val(step_raw.emult.i),
+  --   result => posit_norm.emult.i,
+  --   inf    => open,
+  --   zero   => open
+  --   );
+  -- posit_normalize_ml_es314 : posit_normalize_es3 port map (
+  --   in1    => prod2val(step_raw.emult.d),
+  --   result => posit_norm.emult.d,
+  --   inf    => open,
+  --   zero   => open
+  --   );
+  -- posit_normalize_ml_es410 : posit_normalize_es3 port map (
+  --   in1    => step_raw.init.tmis.alpha,
+  --   result => posit_norm.init.tmis.alpha,
+  --   inf    => open,
+  --   zero   => open
+  --   );
+  -- posit_normalize_ml_es411 : posit_normalize_es3 port map (
+  --   in1    => step_raw.init.tmis.beta,
+  --   result => posit_norm.init.tmis.beta,
+  --   inf    => open,
+  --   zero   => open
+  --   );
+  -- posit_normalize_ml_es412 : posit_normalize_es3 port map (
+  --   in1    => step_raw.init.tmis.delta,
+  --   result => posit_norm.init.tmis.delta,
+  --   inf    => open,
+  --   zero   => open
+  --   );
+  -- posit_normalize_ml_es413 : posit_normalize_es3 port map (
+  --   in1    => step_raw.init.tmis.epsilon,
+  --   result => posit_norm.init.tmis.epsilon,
+  --   inf    => open,
+  --   zero   => open
+  --   );
+  -- posit_normalize_ml_es414 : posit_normalize_es3 port map (
+  --   in1    => step_raw.init.tmis.zeta,
+  --   result => posit_norm.init.tmis.zeta,
+  --   inf    => open,
+  --   zero   => open
+  --   );
+  -- posit_normalize_ml_es415 : posit_normalize_es3 port map (
+  --   in1    => step_raw.init.tmis.eta,
+  --   result => posit_norm.init.tmis.eta,
+  --   inf    => open,
+  --   zero   => open
+  --   );
+  --   posit_normalize_ml_es514 : posit_normalize_es3 port map (
+  --   in1    => step_raw.init.mids.itl,
+  --   result => posit_norm.init.mids.itl,
+  --   inf    => open,
+  --   zero   => open
+  --   );
+  -- posit_normalize_ml_es515 : posit_normalize_es3 port map (
+  --   in1    => step_raw.init.mids.dtl,
+  --   result => posit_norm.init.mids.dtl,
+  --   inf    => open,
+  --   zero   => open
+  --   );
+  -- posit_normalize_ml_es516 : posit_normalize_es3 port map (
+  --   in1    => step_raw.init.mids.dt,
+  --   result => posit_norm.init.mids.dt,
+  --   inf    => open,
+  --   zero   => open
+  --   );
+
 
 ---------------------------------------------------------------------------------------------------
 end rtl;

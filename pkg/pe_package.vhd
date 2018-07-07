@@ -754,6 +754,7 @@ package body pe_package is
       tmp(27 downto 2) := a(55 downto 30);
       tmp(36 downto 28) := a(64 downto 56);
       tmp(37) := a(66);
+      assert signed(tmp(36 downto 28)) = signed(a(64 downto 56)) report "Scale loss (prod2val), val=" & integer'image(to_integer(signed(tmp(36 downto 28)))) & ", prod=" & integer'image(to_integer(signed(a(64 downto 56)))) severity error;
       return tmp;
   end function prod2val;
 
@@ -772,6 +773,7 @@ package body pe_package is
     tmp(27 downto 2) := a(31 downto 6);
     tmp(36 downto 28) := a(40 downto 32);
     tmp(37) := a(41);
+    assert signed(tmp(36 downto 28)) = signed(a(40 downto 32)) report "Scale loss (sum2val), val=" & integer'image(to_integer(signed(tmp(36 downto 28)))) & ", sum=" & integer'image(to_integer(signed(a(40 downto 32)))) severity error;
     return tmp;
   end function sum2val;
 
