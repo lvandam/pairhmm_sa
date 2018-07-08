@@ -15,7 +15,8 @@ use ieee.numeric_std.all;
 
 library work;
 use work.functions.all;
-use work.pe_package.all;
+use work.pe_common.all;
+use work.pe_package.all; -- Posit configuration specific
 
 entity pe is
   generic (
