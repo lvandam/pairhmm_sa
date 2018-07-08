@@ -33,20 +33,20 @@ end pe;
 architecture rtl of pe is
   -- Intermediate signals
   signal step     : step_type;
-  signal step_raw : step_es3_type;
+  signal step_raw : step_raw_type;
 
   -- Shift Registers (SRs)
   signal initial_sr : initial_array_pe_raw    := (others => value_empty);
-  signal mids_sr    : mids_raw_array          := (others => mids_es3_empty);
-  signal tmis_sr    : transmissions_raw_array := (others => tmis_es3_empty);
-  signal emis_sr    : emissions_raw_array     := (others => emis_es3_empty);
+  signal mids_sr    : mids_raw_array          := (others => mids_raw_empty);
+  signal tmis_sr    : transmissions_raw_array := (others => tmis_raw_empty);
+  signal emis_sr    : emissions_raw_array     := (others => emis_raw_empty);
   signal valid_sr   : valid_array             := (others => '0');
   signal cell_sr    : cell_array              := (others => PE_NORMAL);
   signal x_sr       : bps                     := bps_empty;
   signal y_sr       : bps                     := bps_empty;
 
   -- To select the right input for the last Mult
-  signal distm : value_es3;
+  signal distm : value;
 
   -- Potential outputs depening on basepairs:
   signal o_normal : pe_out;
@@ -103,8 +103,6 @@ begin
 
   ----------------------------------------------------------------------------------------------------------------------- Coming from the top
   -- All top inputs can be potentially zero when working on the first row of the matrix
-
-  gen_inputs_es3 : if POSIT_ES = 3 generate
     step_raw.init.mids.mt <= prod2val(step_raw.emult.m) when i.cell /= PE_TOP else value_empty;
 
     -- Initial Signal I depending on if Theta mult is Disabled is True
@@ -122,7 +120,6 @@ begin
     ISUDF : if DISABLE_UPSILON /= '1' generate
       step_raw.init.mids.dt <= prod2val(step_raw.emult.d) when i.cell /= PE_TOP else i.initial;
     end generate;
-  end generate;
 
 ----------------------------------------------------------------------------------------------------------------------- Coming from the top left
   -- Initial Signal for top left; if this is the First PE we get M,I,D [i-1][j-1] from the inputs
@@ -155,18 +152,16 @@ begin
   -- 4 CYCLES
   ---------------------------------------------------------------------------------------------------
 
-  -- gen_es2_mul_alpha : if POSIT_ES = 2 generate
-  --   mul_alpha : positmult_4 port map (
-  --     clk    => cr.clk,
-  --     in1    => step.init.tmis.alpha,
-  --     in2    => step.init.mids.mtl,
-  --     start  => step.init.valid,
-  --     result => step.trans.almtl,
-  --     inf    => posit_infs(0),
-  --     zero   => posit_zeros(0),
-  --     done   => fp_valids(0)
-  --     );
-  -- end generate;
+  gen_es2_mul_alpha : if POSIT_ES = 2 generate
+    mul_alpha : positmult_4_raw port map (
+      clk    => cr.clk,
+      in1    => step_raw.init.tmis.alpha,
+      in2    => step_raw.init.mids.mtl,
+      start  => step.init.valid,
+      result => step_raw.trans.almtl,
+      done   => fp_valids(0)
+      );
+  end generate;
   gen_es3_mul_alpha : if POSIT_ES = 3 generate
     mul_alpha : positmult_4_raw_es3 port map (
       clk    => cr.clk,
@@ -178,18 +173,16 @@ begin
       );
   end generate;
 
-  -- gen_es2_mul_beta : if POSIT_ES = 2 generate
-  --   mul_beta : positmult_4 port map (
-  --     clk    => cr.clk,
-  --     in1    => step.init.tmis.beta,
-  --     in2    => step.init.mids.itl,
-  --     start  => step.init.valid,
-  --     result => step.trans.beitl,
-  --     inf    => posit_infs(1),
-  --     zero   => posit_zeros(1),
-  --     done   => fp_valids(1)
-  --     );
-  -- end generate;
+  gen_es2_mul_beta : if POSIT_ES = 2 generate
+    mul_beta : positmult_4_raw port map (
+      clk    => cr.clk,
+      in1    => step_raw.init.tmis.beta,
+      in2    => step_raw.init.mids.itl,
+      start  => step_raw.init.valid,
+      result => step_raw.trans.beitl,
+      done   => fp_valids(1)
+      );
+  end generate;
   gen_es3_mul_beta : if POSIT_ES = 3 generate
     mul_beta : positmult_4_raw_es3 port map (
       clk    => cr.clk,
@@ -201,18 +194,16 @@ begin
       );
   end generate;
 
-  -- gen_es2_mul_gamma : if POSIT_ES = 2 generate
-  --   mul_gamma : positmult_4 port map (
-  --     clk    => cr.clk,
-  --     in1    => step.init.tmis.beta,
-  --     in2    => step.init.mids.dtl,
-  --     start  => step.init.valid,
-  --     result => step.trans.gadtl,
-  --     inf    => posit_infs(2),
-  --     zero   => posit_zeros(2),
-  --     done   => fp_valids(2)
-  --     );
-  -- end generate;
+  gen_es2_mul_gamma : if POSIT_ES = 2 generate
+    mul_gamma : positmult_4_raw port map (
+      clk    => cr.clk,
+      in1    => step_raw.init.tmis.beta,
+      in2    => step_raw.init.mids.dtl,
+      start  => step_raw.init.valid,
+      result => step_raw.trans.gadtl,
+      done   => fp_valids(2)
+      );
+  end generate;
   gen_es3_mul_gamma : if POSIT_ES = 3 generate
     mul_gamma : positmult_4_raw_es3 port map (
       clk    => cr.clk,
@@ -224,18 +215,16 @@ begin
       );
   end generate;
 
-  -- gen_es2_mul_delta : if POSIT_ES = 2 generate
-  --   mul_delta : positmult_4 port map (
-  --     clk    => cr.clk,
-  --     in1    => step.init.tmis.delta,
-  --     in2    => step.init.mids.mt,
-  --     start  => step.init.valid,
-  --     result => step.trans.demt,
-  --     inf    => posit_infs(3),
-  --     zero   => posit_zeros(3),
-  --     done   => fp_valids(3)
-  --     );
-  -- end generate;
+  gen_es2_mul_delta : if POSIT_ES = 2 generate
+    mul_delta : positmult_4_raw port map (
+      clk    => cr.clk,
+      in1    => step_raw.init.tmis.delta,
+      in2    => step_raw.init.mids.mt,
+      start  => step_raw.init.valid,
+      result => step_raw.trans.demt,
+      done   => fp_valids(3)
+      );
+  end generate;
   gen_es3_mul_delta : if POSIT_ES = 3 generate
     mul_delta : positmult_4_raw_es3 port map (
       clk    => cr.clk,
@@ -247,18 +236,16 @@ begin
       );
   end generate;
 
-  -- gen_es2_mul_epsilon : if POSIT_ES = 2 generate
-  --   mul_epsilon : positmult_4 port map (
-  --     clk    => cr.clk,
-  --     in1    => step.init.tmis.epsilon,
-  --     in2    => step.init.mids.it,
-  --     start  => step.init.valid,
-  --     result => step.trans.epit,
-  --     inf    => posit_infs(4),
-  --     zero   => posit_zeros(4),
-  --     done   => fp_valids(4)
-  --     );
-  -- end generate;
+  gen_es2_mul_epsilon : if POSIT_ES = 2 generate
+    mul_epsilon : positmult_4_raw port map (
+      clk    => cr.clk,
+      in1    => step_raw.init.tmis.epsilon,
+      in2    => step_raw.init.mids.it,
+      start  => step_raw.init.valid,
+      result => step_raw.trans.epit,
+      done   => fp_valids(4)
+      );
+  end generate;
   gen_es3_mul_epsilon : if POSIT_ES = 3 generate
     mul_epsilon : positmult_4_raw_es3 port map (
       clk    => cr.clk,
@@ -270,18 +257,16 @@ begin
       );
   end generate;
 
-  -- gen_es2_mul_zeta : if POSIT_ES = 2 generate
-  --   mul_zeta : positmult_4 port map (
-  --     clk    => cr.clk,
-  --     in1    => step.init.tmis.zeta,
-  --     in2    => step.init.mids.ml,
-  --     start  => step.init.valid,
-  --     result => step.trans.zeml,
-  --     inf    => posit_infs(5),
-  --     zero   => posit_zeros(5),
-  --     done   => fp_valids(5)
-  --     );
-  -- end generate;
+  gen_es2_mul_zeta : if POSIT_ES = 2 generate
+    mul_zeta : positmult_4_raw port map (
+      clk    => cr.clk,
+      in1    => step_raw.init.tmis.zeta,
+      in2    => step_raw.init.mids.ml,
+      start  => step_raw.init.valid,
+      result => step_raw.trans.zeml,
+      done   => fp_valids(5)
+      );
+  end generate;
   gen_es3_mul_zeta : if POSIT_ES = 3 generate
     mul_zeta : positmult_4_raw_es3 port map (
       clk    => cr.clk,
@@ -293,18 +278,16 @@ begin
       );
   end generate;
 
-  -- gen_es2_mul_eta : if POSIT_ES = 2 generate
-  --   mul_eta : positmult_4 port map (
-  --     clk    => cr.clk,
-  --     in1    => step.init.tmis.eta,
-  --     in2    => step.init.mids.dl,
-  --     start  => step.init.valid,
-  --     result => step.trans.etdl,
-  --     inf    => posit_infs(6),
-  --     zero   => posit_zeros(6),
-  --     done   => fp_valids(6)
-  --     );
-  -- end generate;
+  gen_es2_mul_eta : if POSIT_ES = 2 generate
+    mul_eta : positmult_4_raw port map (
+      clk    => cr.clk,
+      in1    => step_raw.init.tmis.eta,
+      in2    => step_raw.init.mids.dl,
+      start  => step_raw.init.valid,
+      result => step_raw.trans.etdl,
+      done   => fp_valids(6)
+      );
+  end generate;
   gen_es3_mul_eta : if POSIT_ES = 3 generate
     mul_eta : positmult_4_raw_es3 port map (
       clk    => cr.clk,
@@ -333,18 +316,16 @@ begin
 
   -- BEGIN alpha + beta + delayed gamma
   -- Substep adding alpha + beta
-  -- gen_es2_add_alpha_beta : if POSIT_ES = 2 generate
-  --   add_alpha_beta : positadd_4 port map (
-  --     clk    => cr.clk,
-  --     in1    => step.trans.almtl,
-  --     in2    => step.trans.beitl,
-  --     start  => step.init.valid,
-  --     result => step.add.albetl,
-  --     inf    => posit_infs(7),
-  --     zero   => posit_zeros(7),
-  --     done   => fp_valids(7)
-  --     );
-  -- end generate;
+  gen_es2_add_alpha_beta : if POSIT_ES = 2 generate
+    add_alpha_beta : positadd_4_raw port map (
+      clk    => cr.clk,
+      in1    => prod2val(step_raw.trans.almtl),
+      in2    => prod2val(step_raw.trans.beitl),
+      start  => step_raw.init.valid,
+      result => step_raw.add.albetl,
+      done   => fp_valids(7)
+      );
+  end generate;
   gen_es3_add_alpha_beta : if POSIT_ES = 3 generate
     add_alpha_beta : positadd_4_raw_es3 port map (
       clk    => cr.clk,
@@ -357,18 +338,16 @@ begin
   end generate;
 
   -- Substep adding alpha + beta + delayed gamma
-  -- gen_es2_add_alpha_beta_gamma : if POSIT_ES = 2 generate
-  --   add_alpha_beta_gamma : positadd_4 port map (
-  --     clk    => cr.clk,
-  --     in1    => step.add.albetl,
-  --     in2    => add_gamma_sr(PE_ADD_CYCLES-1),
-  --     start  => step.init.valid,
-  --     result => step.add.albegatl,
-  --     inf    => posit_infs(8),
-  --     zero   => posit_zeros(8),
-  --     done   => fp_valids(8)
-  --     );
-  -- end generate;
+  gen_es2_add_alpha_beta_gamma : if POSIT_ES = 2 generate
+    add_alpha_beta_gamma : positadd_4_raw port map (
+      clk    => cr.clk,
+      in1    => sum2val(step_raw.add.albetl),
+      in2    => prod2val(add_gamma_sr(PE_ADD_CYCLES-1)),
+      start  => step_raw.init.valid,
+      result => step_raw.add.albegatl,
+      done   => fp_valids(8)
+      );
+  end generate;
   gen_es3_add_alpha_beta_gamma : if POSIT_ES = 3 generate
     add_alpha_beta_gamma : positadd_4_raw_es3 port map (
       clk    => cr.clk,
@@ -382,18 +361,16 @@ begin
   -- END alpha + beta + delayed gamma
 
 
-  -- gen_es2_add_delta_epsilon : if POSIT_ES = 2 generate
-  --   add_delta_epsilon : positadd_8 port map (
-  --     clk    => cr.clk,
-  --     in1    => step.trans.demt,
-  --     in2    => step.trans.epit,
-  --     start  => step.init.valid,
-  --     result => step.add.deept,
-  --     inf    => posit_infs(9),
-  --     zero   => posit_zeros(9),
-  --     done   => fp_valids(9)
-  --     );
-  -- end generate;
+  gen_es2_add_delta_epsilon : if POSIT_ES = 2 generate
+    add_delta_epsilon : positadd_8_raw port map (
+      clk    => cr.clk,
+      in1    => prod2val(step_raw.trans.demt),
+      in2    => prod2val(step_raw.trans.epit),
+      start  => step_raw.init.valid,
+      result => step_raw.add.deept,
+      done   => fp_valids(9)
+      );
+  end generate;
   gen_es3_add_delta_epsilon : if POSIT_ES = 3 generate
     add_delta_epsilon : positadd_8_raw_es3 port map (
       clk    => cr.clk,
@@ -405,18 +382,16 @@ begin
       );
   end generate;
 
-  -- gen_es2_add_zeta_eta : if POSIT_ES = 2 generate
-  --   add_zeta_eta : positadd_8 port map (
-  --     clk    => cr.clk,
-  --     in1    => step.trans.zeml,
-  --     in2    => step.trans.etdl,
-  --     start  => step.init.valid,
-  --     result => step.add.zeett,
-  --     inf    => posit_infs(10),
-  --     zero   => posit_zeros(10),
-  --     done   => fp_valids(10)
-  --     );
-  -- end generate;
+  gen_es2_add_zeta_eta : if POSIT_ES = 2 generate
+    add_zeta_eta : positadd_8_raw port map (
+      clk    => cr.clk,
+      in1    => prod2val(step_raw.trans.zeml),
+      in2    => prod2val(step_raw.trans.etdl),
+      start  => step_raw.init.valid,
+      result => step_raw.add.zeett,
+      done   => fp_valids(10)
+      );
+  end generate;
   gen_es3_add_zeta_eta : if POSIT_ES = 3 generate
     add_zeta_eta : positadd_8_raw_es3 port map (
       clk    => cr.clk,
@@ -456,18 +431,16 @@ begin
     end if;
   end process;
 
-  -- gen_es2_mul_lambda : if POSIT_ES = 2 generate
-  --   mul_lambda : positmult_4 port map (
-  --     clk    => cr.clk,
-  --     in1    => step.add.albegatl,
-  --     in2    => distm,
-  --     start  => step.init.valid,
-  --     result => step.emult.m,
-  --     inf    => posit_infs(11),
-  --     zero   => posit_zeros(11),
-  --     done   => fp_valids(11)
-  --     );
-  -- end generate;
+  gen_es2_mul_lambda : if POSIT_ES = 2 generate
+    mul_lambda : positmult_4_raw_sumval port map (
+      clk    => cr.clk,
+      in1    => step_raw.add.albegatl,
+      in2    => distm,
+      start  => step_raw.init.valid,
+      result => step_raw.emult.m,
+      done   => fp_valids(11)
+      );
+  end generate;
   gen_es3_mul_lambda : if POSIT_ES = 3 generate
     mul_lambda : positmult_4_raw_sumval_es3 port map (
       clk    => cr.clk,
@@ -484,18 +457,16 @@ begin
   end generate;
 
   THETA_MULT : if DISABLE_THETA /= '1' generate
-    -- gen_es2_mul_theta : if POSIT_ES = 2 generate
-    --   mul_theta : positmult_4 port map (
-    --     clk    => cr.clk,
-    --     in1    => step.add.deept,
-    --     in2    => step.add.emis.theta,
-    --     start  => step.init.valid,
-    --     result => step.emult.i,
-    --     inf    => posit_infs(12),
-    --     zero   => posit_zeros(12),
-    --     done   => fp_valids(12)
-    --     );
-    -- end generate;
+    gen_es2_mul_theta : if POSIT_ES = 2 generate
+      mul_theta : positmult_4_raw_sumval port map (
+        clk    => cr.clk,
+        in1    => step_raw.add.deept,
+        in2    => step_raw.add.emis.theta,
+        start  => step_raw.init.valid,
+        result => step_raw.emult.i,
+        done   => fp_valids(12)
+        );
+    end generate;
     gen_es3_mul_theta : if POSIT_ES = 3 generate
       mul_theta : positmult_4_raw_sumval_es3 port map (
         clk    => cr.clk,
@@ -513,18 +484,16 @@ begin
   end generate;
 
   UPSILON_MULT : if DISABLE_UPSILON /= '1' generate
-    -- gen_es2_mul_upsilon : if POSIT_ES = 2 generate
-    --   mul_upsilon : positmult_4 port map (
-    --     clk    => cr.clk,
-    --     in1    => step.add.zeett,
-    --     in2    => step.add.emis.upsilon,
-    --     start  => step.init.valid,
-    --     result => step.emult.d,
-    --     inf    => posit_infs(13),
-    --     zero   => posit_zeros(13),
-    --     done   => fp_valids(13)
-    --     );
-    -- end generate;
+    gen_es2_mul_upsilon : if POSIT_ES = 2 generate
+      mul_upsilon : positmult_4_raw_sumval port map (
+        clk    => cr.clk,
+        in1    => step_raw.add.zeett,
+        in2    => step_raw.add.emis.upsilon,
+        start  => step_raw.init.valid,
+        result => step_raw.emult.d,
+        done   => fp_valids(13)
+        );
+    end generate;
     gen_es3_mul_upsilon : if POSIT_ES = 3 generate
       mul_upsilon : positmult_4_raw_sumval_es3 port map (
         clk    => cr.clk,
@@ -614,9 +583,9 @@ begin
       if cr.rst = '1' then
         -- Reset shift register:
         initial_sr <= (others => value_empty);
-        mids_sr    <= (others => mids_es3_empty);
-        tmis_sr    <= (others => tmis_es3_empty);
-        emis_sr    <= (others => emis_es3_empty);
+        mids_sr    <= (others => mids_raw_empty);
+        tmis_sr    <= (others => tmis_raw_empty);
+        emis_sr    <= (others => emis_raw_empty);
         valid_sr   <= (others => '0');
         cell_sr    <= (others => PE_NORMAL);
         x_sr       <= bps_empty;
@@ -685,7 +654,6 @@ begin
   o_normal.emis <= step_raw.emult.emis;
   o_normal.tmis <= step_raw.emult.tmis;
 
-  gen_normal_output_es3 : if POSIT_ES = 3 generate
     o_normal.mids.ml  <= prod2val(step_raw.emult.m);
     o_normal.mids.mtl <= value_empty;
     o_normal.mids.mt  <= prod2val(step_raw.emult.m);
@@ -719,7 +687,6 @@ begin
     o_normal.initial <= initial_sr(PE_CYCLES-1);
 
     o_normal.ready <= '1';
-  end generate;
 
   ---------------------------------------------------------------------------------------------------
   --    ____                               ____        _               _

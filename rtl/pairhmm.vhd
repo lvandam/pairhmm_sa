@@ -47,7 +47,7 @@ architecture logic of pairhmm is
 
   signal posit_infs : std_logic_vector(2 downto 0);
 
-  signal addm_out       : prob;  -- Laurens: 1 extra delay (11 -> 12 cycles latency)
+  signal addm_out       : prob;
   signal addm_out_valid : std_logic;
 
   signal addi_out       : prob;
@@ -61,7 +61,7 @@ architecture logic of pairhmm is
   signal resm    : res_array;
   signal resi    : res_array;
 
-  signal resbusm_raw_es3, resbusi_raw_es3 : value_es3;
+  signal resbusm_raw, resbusi_raw : value;
   signal resbusm, resbusi                 : prob;
 
   signal lastlast  : std_logic;
@@ -224,15 +224,29 @@ begin
 ---------------------------------------------------------------------------------------------------
 
 -- POSIT NORMALIZATION
+gen_normalize_es2 : if POSIT_ES = 2 generate
+  posit_normalize_ml_es2 : posit_normalize port map (
+    in1    => resbusm_raw,
+    result => resbusm,
+    inf    => open,
+    zero   => open
+    );
+  posit_normalize_il_es2 : posit_normalize port map (
+    in1    => resbusi_raw,
+    result => resbusi,
+    inf    => open,
+    zero   => open
+    );
+end generate;
   gen_normalize_es3 : if POSIT_ES = 3 generate
     posit_normalize_ml_es3 : posit_normalize_es3 port map (
-      in1    => resbusm_raw_es3,
+      in1    => resbusm_raw,
       result => resbusm,
       inf    => open,
       zero   => open
       );
     posit_normalize_il_es3 : posit_normalize_es3 port map (
-      in1    => resbusi_raw_es3,
+      in1    => resbusi_raw,
       result => resbusi,
       inf    => open,
       zero   => open
@@ -240,10 +254,9 @@ begin
   end generate;
 
   -- Result bus
-  res_bus_es3 : if POSIT_ES = 3 generate
     process(cr.clk)
-      variable vbusm                : value_es3;
-      variable vbusi                : value_es3;
+      variable vbusm                : value;
+      variable vbusi                : value;
       variable m_nonzero, i_nonzero : std_logic := '0';
     begin
       if rising_edge(cr.clk) then
@@ -282,15 +295,15 @@ begin
 
         -- Place on bus, latency is 2
         if m_nonzero = '1' then
-          resbusm_raw_es3 <= vbusm;
+          resbusm_raw <= vbusm;
         else
-          resbusm_raw_es3 <= value_empty;
+          resbusm_raw <= value_empty;
         end if;
 
         if i_nonzero = '1' then
-          resbusi_raw_es3 <= vbusi;
+          resbusi_raw <= vbusi;
         else
-          resbusi_raw_es3 <= value_empty;
+          resbusi_raw <= value_empty;
         end if;
 
         -- Check if last PE is at last cell update
@@ -301,7 +314,6 @@ begin
         lastlast1 <= lastlast;          -- match latency of 2
       end if;
     end process;
-  end generate;
 
 
   gen_accumulator_wide : if POSIT_WIDE_ACCUMULATOR = 1 generate
@@ -329,7 +341,6 @@ begin
         inf    => posit_infs(0),
         done   => addm_out_valid
         );
-
       resaccum_i : positaccum_16 port map (
         clk    => cr.clk,
         rst    => res_rst,
@@ -339,8 +350,6 @@ begin
         inf    => posit_infs(1),
         done   => addi_out_valid
         );
-
-
       resaccum : positadd_4 port map (
         clk    => cr.clk,
         in1    => i_delay(4 * PE_ADD_CYCLES - 1),
@@ -362,7 +371,6 @@ begin
         inf    => posit_infs(0),
         done   => addm_out_valid
         );
-
       resaccum_i : positaccum_16_es3 port map (
         clk    => cr.clk,
         rst    => res_rst,
@@ -372,7 +380,6 @@ begin
         inf    => posit_infs(1),
         done   => addi_out_valid
         );
-
       resaccum : positadd_4_es3 port map (
         clk    => cr.clk,
         in1    => i_delay(4 * PE_ADD_CYCLES - 1),
