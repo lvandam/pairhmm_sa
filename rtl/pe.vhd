@@ -15,7 +15,7 @@ use ieee.numeric_std.all;
 
 library work;
 use work.functions.all;
-use work.pe_common.all;
+use work.posit_common.all;
 use work.pe_package.all; -- Posit configuration specific
 
 entity pe is
@@ -318,20 +318,20 @@ begin
   -- BEGIN alpha + beta + delayed gamma
   -- Substep adding alpha + beta
   gen_es2_add_alpha_beta : if POSIT_ES = 2 generate
-    add_alpha_beta : positadd_4_raw port map (
+    add_alpha_beta : positadd_prod_4_raw port map (
       clk    => cr.clk,
-      in1    => prod2val(step_raw.trans.almtl),
-      in2    => prod2val(step_raw.trans.beitl),
+      in1    => step_raw.trans.almtl,
+      in2    => step_raw.trans.beitl,
       start  => step_raw.init.valid,
       result => step_raw.add.albetl,
       done   => fp_valids(7)
       );
   end generate;
   gen_es3_add_alpha_beta : if POSIT_ES = 3 generate
-    add_alpha_beta : positadd_4_raw_es3 port map (
+    add_alpha_beta : positadd_prod_4_raw_es3 port map (
       clk    => cr.clk,
-      in1    => prod2val(step_raw.trans.almtl),
-      in2    => prod2val(step_raw.trans.beitl),
+      in1    => step_raw.trans.almtl,
+      in2    => step_raw.trans.beitl,
       start  => step_raw.init.valid,
       result => step_raw.add.albetl,
       done   => fp_valids(7)
@@ -342,7 +342,7 @@ begin
   gen_es2_add_alpha_beta_gamma : if POSIT_ES = 2 generate
     add_alpha_beta_gamma : positadd_4_raw port map (
       clk    => cr.clk,
-      in1    => sum2val(step_raw.add.albetl),
+      in1    => prodsum2val(step_raw.add.albetl),
       in2    => prod2val(add_gamma_sr(PE_ADD_CYCLES-1)),
       start  => step_raw.init.valid,
       result => step_raw.add.albegatl,
@@ -352,7 +352,7 @@ begin
   gen_es3_add_alpha_beta_gamma : if POSIT_ES = 3 generate
     add_alpha_beta_gamma : positadd_4_raw_es3 port map (
       clk    => cr.clk,
-      in1    => sum2val(step_raw.add.albetl),
+      in1    => prodsum2val(step_raw.add.albetl),
       in2    => prod2val(add_gamma_sr(PE_ADD_CYCLES-1)),
       start  => step_raw.init.valid,
       result => step_raw.add.albegatl,

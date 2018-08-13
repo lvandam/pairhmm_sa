@@ -15,7 +15,7 @@ use ieee.numeric_std.all;
 
 library work;
 use work.functions.all;
-use work.pe_common.all;
+use work.posit_common.all;
 use work.pe_package.all;
 use work.pairhmm_package.all;
 
@@ -50,11 +50,11 @@ architecture logic of pairhmm is
 
   signal addm_out       : prob;
   signal addm_out_raw   : value_accum;
-  signal addm_out_valid : std_logic;
+  signal addm_out_valid, addm_out_truncated : std_logic;
 
   signal addi_out       : prob;
   signal addi_out_raw   : value_accum;
-  signal addi_out_valid : std_logic;
+  signal addi_out_valid, addi_out_truncated : std_logic;
 
   signal res_acc : prob;
 
@@ -151,30 +151,34 @@ begin
 -- POSIT NORMALIZATION
   gen_normalize_es2 : if POSIT_ES = 2 generate
     posit_normalize_ml_es2 : posit_normalize port map (
-      in1    => resbusm_raw,
-      result => resbusm,
-      inf    => open,
-      zero   => open
+      in1       => resbusm_raw,
+      truncated => '0',
+      result    => resbusm,
+      inf       => open,
+      zero      => open
       );
     posit_normalize_il_es2 : posit_normalize port map (
-      in1    => resbusi_raw,
-      result => resbusi,
-      inf    => open,
-      zero   => open
+      in1       => resbusi_raw,
+      truncated => '0',
+      result    => resbusi,
+      inf       => open,
+      zero      => open
       );
   end generate;
   gen_normalize_es3 : if POSIT_ES = 3 generate
     posit_normalize_ml_es3 : posit_normalize_es3 port map (
-      in1    => resbusm_raw,
-      result => resbusm,
-      inf    => open,
-      zero   => open
+      in1       => resbusm_raw,
+      truncated => '0',
+      result    => resbusm,
+      inf       => open,
+      zero      => open
       );
     posit_normalize_il_es3 : posit_normalize_es3 port map (
-      in1    => resbusi_raw,
-      result => resbusi,
-      inf    => open,
-      zero   => open
+      in1       => resbusi_raw,
+      truncated => '0',
+      result    => resbusi,
+      inf       => open,
+      zero      => open
       );
   end generate;
 
@@ -244,7 +248,7 @@ begin
   gen_accumulator_wide : if POSIT_WIDE_ACCUMULATOR = 1 generate
     signal resaccum_out       : prob;
     signal resaccum_out_raw   : value_sum;
-    signal resaccum_out_valid : std_logic;
+    signal resaccum_out_valid, resaccum_out_truncated : std_logic;
 
     signal res_acc_zero : std_logic;
 
@@ -257,7 +261,7 @@ begin
     signal addm_addi_valid : std_logic;
   begin
     addm_addi_valid <= addm_out_valid and addi_out_valid;
-    
+
     gen_es2_add : if POSIT_ES = 2 generate
       resaccum_m : positaccum_16_raw port map (
         clk    => cr.clk,
@@ -265,7 +269,8 @@ begin
         in1    => resbusm_raw,
         start  => '1',
         result => addm_out_raw,
-        done   => addm_out_valid
+        done   => addm_out_valid,
+        truncated => addm_out_truncated
         );
       resaccum_i : positaccum_16_raw port map (
         clk    => cr.clk,
@@ -273,7 +278,8 @@ begin
         in1    => resbusi_raw,
         start  => '1',
         result => addi_out_raw,
-        done   => addi_out_valid
+        done   => addi_out_valid,
+        truncated => addi_out_truncated
         );
       resaccum : positadd_4_raw port map (
         clk    => cr.clk,
@@ -281,7 +287,8 @@ begin
         in2    => accum2val(addm_out_raw),
         start  => addm_addi_valid,
         result => resaccum_out_raw,
-        done   => resaccum_out_valid
+        done   => resaccum_out_valid,
+        truncated => resaccum_out_truncated
         );
     end generate;
 
@@ -292,7 +299,8 @@ begin
         in1    => resbusm_raw,
         start  => '1',
         result => addm_out_raw,
-        done   => addm_out_valid
+        done   => addm_out_valid,
+        truncated => addm_out_truncated
         );
       resaccum_i : positaccum_16_raw_es3 port map (
         clk    => cr.clk,
@@ -300,7 +308,8 @@ begin
         in1    => resbusi_raw,
         start  => '1',
         result => addi_out_raw,
-        done   => addi_out_valid
+        done   => addi_out_valid,
+        truncated => addi_out_truncated
         );
       resaccum : positadd_4_raw_es3 port map (
         clk    => cr.clk,
@@ -308,7 +317,8 @@ begin
         in2    => accum2val(addm_out_raw),
         start  => addm_addi_valid,
         result => resaccum_out_raw,
-        done   => resaccum_out_valid
+        done   => resaccum_out_valid,
+        truncated => resaccum_out_truncated
         );
     end generate;
 
@@ -382,18 +392,20 @@ begin
 
     gen_accum_normalize_es2 : if POSIT_ES = 2 generate
       posit_normalize_accum_es2 : posit_normalize port map (
-        in1    => sum2val(resaccum_out_raw),
-        result => resaccum_out,
-        inf    => open,
-        zero   => open
+        in1       => sum2val(resaccum_out_raw),
+        truncated => resaccum_out_truncated,
+        result    => resaccum_out,
+        inf       => open,
+        zero      => open
         );
     end generate;
     gen_accum_normalize_es3 : if POSIT_ES = 3 generate
       posit_normalize_accum_es3 : posit_normalize_es3 port map (
-        in1    => sum2val(resaccum_out_raw),
-        result => resaccum_out,
-        inf    => open,
-        zero   => open
+        in1       => sum2val(resaccum_out_raw),
+        truncated => resaccum_out_truncated,
+        result    => resaccum_out,
+        inf       => open,
+        zero      => open
         );
     end generate;
 
