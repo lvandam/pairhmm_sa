@@ -70,6 +70,8 @@ architecture logic of pairhmm is
   signal lastlast  : std_logic;
   signal lastlast1 : std_logic;
 
+  signal pe_out_mids_ml, pe_out_mids_il : std_logic_vector(31 downto 0);
+
 begin
 
   -- Connect input to the input register before the first PE
@@ -113,8 +115,7 @@ begin
 
   end generate;
 
-  -- Connect last PE outputs to pairhmm outputs
-
+  -- Connect last PE outputs to pair-HMM outputs
   o.last  <= pe_out_reg;
   o.ready <= pe_out_reg.ready;
 
@@ -149,38 +150,56 @@ begin
 ---------------------------------------------------------------------------------------------------
 
 -- POSIT NORMALIZATION
-  gen_normalize_es2 : if POSIT_ES = 2 generate
-    posit_normalize_ml_es2 : posit_normalize port map (
-      in1       => resbusm_raw,
-      truncated => '0',
-      result    => resbusm,
-      inf       => open,
-      zero      => open
-      );
-    posit_normalize_il_es2 : posit_normalize port map (
-      in1       => resbusi_raw,
-      truncated => '0',
-      result    => resbusi,
-      inf       => open,
-      zero      => open
-      );
-  end generate;
-  gen_normalize_es3 : if POSIT_ES = 3 generate
-    posit_normalize_ml_es3 : posit_normalize_es3 port map (
-      in1       => resbusm_raw,
-      truncated => '0',
-      result    => resbusm,
-      inf       => open,
-      zero      => open
-      );
-    posit_normalize_il_es3 : posit_normalize_es3 port map (
-      in1       => resbusi_raw,
-      truncated => '0',
-      result    => resbusi,
-      inf       => open,
-      zero      => open
-      );
-  end generate;
+  -- gen_normalize_es2 : if POSIT_ES = 2 generate
+  --   posit_normalize_ml_es2 : posit_normalize port map (
+  --     in1       => resbusm_raw,
+  --     truncated => '0',
+  --     result    => resbusm,
+  --     inf       => open,
+  --     zero      => open
+  --     );
+  --   posit_normalize_il_es2 : posit_normalize port map (
+  --     in1       => resbusi_raw,
+  --     truncated => '0',
+  --     result    => resbusi,
+  --     inf       => open,
+  --     zero      => open
+  --     );
+  -- end generate;
+  -- gen_normalize_es3 : if POSIT_ES = 3 generate
+  --   posit_normalize_ml_es3 : posit_normalize_es3 port map (
+  --     in1       => resbusm_raw,
+  --     truncated => '0',
+  --     result    => resbusm,
+  --     inf       => open,
+  --     zero      => open
+  --     );
+  --   posit_normalize_il_es3 : posit_normalize_es3 port map (
+  --     in1       => resbusi_raw,
+  --     truncated => '0',
+  --     result    => resbusi,
+  --     inf       => open,
+  --     zero      => open
+  --     );
+  -- end generate;
+
+
+
+-- pe_out_0_mids_ml_normalize : posit_normalize port map (
+--   in1    => pe_outs(0).mids.ml,
+--   result => pe_out_mids_ml,
+--   truncated => '0',
+--   inf    => open,
+--   zero   => open
+--   );
+--
+--   pe_out_0_mids_il_normalize : posit_normalize port map (
+--     in1    => pe_outs(0).mids.il,
+--     result => pe_out_mids_il,
+--     truncated => '0',
+--     inf    => open,
+--     zero   => open
+--     );
 
   -- Result bus
   process(cr.clk)
@@ -321,6 +340,29 @@ begin
         truncated => resaccum_out_truncated
         );
     end generate;
+
+
+      -- posit_normalize_1 : posit_normalize port map (
+      --   in1       => accum2val(addm_out_raw),
+      --   truncated => '0',
+      --   result    => addm_out,
+      --   inf       => open,
+      --   zero      => open
+      --   );
+      -- posit_normalize_2 : posit_normalize port map (
+      --   in1       => accum2val(addi_out_raw),
+      --   truncated => '0',
+      --   result    => addi_out,
+      --   inf       => open,
+      --   zero      => open
+      --   );
+      -- posit_normalize_3 : posit_normalize port map (
+      --   in1       => sum2val(resaccum_out_raw),
+      --   truncated => resaccum_out_truncated,
+      --   result    => resaccum_out,
+      --   inf       => open,
+      --   zero      => open
+      --   );
 
     process(cr.clk)
       variable rescounter   : integer range 0 to PE_DEPTH + PE_ADD_CYCLES := 0;
