@@ -16,7 +16,7 @@ use ieee.numeric_std.all;
 library work;
 use work.functions.all;
 use work.posit_common.all;
-use work.pe_package.all; -- Posit configuration specific
+use work.pe_package.all;                -- Posit configuration specific
 
 entity pe is
   generic (
@@ -58,21 +58,20 @@ architecture rtl of pe is
   type add_gamma_sr_type is array (0 to PE_ADD_CYCLES - 1) of value_product;
   signal add_gamma_sr : add_gamma_sr_type := (others => value_product_empty);
 
-  type mul_sr_type is array (0 to PE_MUL_CYCLES - 1) of value_sum;
-  signal mul_theta_sr   : mul_sr_type := (others => value_sum_empty);
-  signal mul_upsilon_sr : mul_sr_type := (others => value_sum_empty);
+  type mul_sr_type is array (0 to PE_MUL_CYCLES - 1) of value_prod_sum;
+  signal mul_theta_sr             : mul_sr_type                                := (others => value_prod_sum_empty);
+  signal mul_theta_truncated_sr   : std_logic_vector(PE_MUL_CYCLES-1 downto 0) := (others => '0');
+  signal mul_upsilon_sr           : mul_sr_type                                := (others => value_prod_sum_empty);
+  signal mul_upsilon_truncated_sr : std_logic_vector(PE_MUL_CYCLES-1 downto 0) := (others => '0');
 
-  type posit_infs_type is array (0 to 13) of std_logic;
-  type posit_zeros_type is array (0 to 13) of std_logic;
-  type fp_readys_type is array (0 to 13) of std_logic;
   type fp_valids_type is array (0 to 13) of std_logic;
-
-  signal posit_infs  : posit_infs_type;
-  signal posit_zeros : posit_zeros_type;
-  signal fp_valids   : fp_valids_type;
+  signal fp_valids : fp_valids_type;
 
   signal posit_norm : step_type := step_type_init;
 
+  signal distm_norm, emult_m_val, mul_theta_val, mul_upsilon_val, add_albetl_val, initial_val : std_logic_vector(31 downto 0);
+  signal posit_truncated                                                                      : std_logic_vector(10 downto 0) := (others => '0');
+  signal mids_ml, mids_il, mids_dl, add_albetl                                                : value                         := value_empty;
 begin
 
   ---------------------------------------------------------------------------------------------------
@@ -85,6 +84,25 @@ begin
   --               | |
   --               |_|
   ---------------------------------------------------------------------------------------------------
+
+  gen_es2_normalize_initial : if POSIT_ES = 2 generate
+    normalize_initial_es2 : posit_normalize port map (
+      in1       => i.initial,
+      truncated => '0',
+      result    => initial_val,
+      inf       => open,
+      zero      => open
+      );
+  end generate;
+  gen_es3_normalize_initial : if POSIT_ES = 3 generate
+    normalize_initial_es3 : posit_normalize port map (
+      in1       => i.initial,
+      truncated => '0',
+      result    => initial_val,
+      inf       => open,
+      zero      => open
+      );
+  end generate;
 
   step_raw.init.valid <= i.valid;
   step_raw.init.cell  <= i.cell;
@@ -104,23 +122,152 @@ begin
 
   ----------------------------------------------------------------------------------------------------------------------- Coming from the top
   -- All top inputs can be potentially zero when working on the first row of the matrix
-    step_raw.init.mids.mt <= prod2val(step_raw.emult.m) when i.cell /= PE_TOP else value_empty;
+  -- step_raw.init.mids.mt <= prod2val(step_raw.emult.m) when i.cell /= PE_TOP else value_empty;
+  step.init.mids.mt <= emult_m_val when i.cell /= PE_TOP else (others => '0');
+  gen_es2_extract_mt : if POSIT_ES = 2 generate
+    extract_mt_es2 : posit_extract_raw port map (
+      in1      => step.init.mids.mt,
+      absolute => open,
+      result   => step_raw.init.mids.mt
+      );
+  end generate;
+  gen_es3_extract_mt : if POSIT_ES = 3 generate
+    extract_mt_es3 : posit_extract_raw_es3 port map (
+      in1      => step.init.mids.mt,
+      absolute => open,
+      result   => step_raw.init.mids.mt
+      );
+  end generate;
 
-    -- Initial Signal I depending on if Theta mult is Disabled is True
-    ISTDT : if DISABLE_THETA = '1' generate
-      step_raw.init.mids.it <= sum2val(mul_theta_sr(PE_MUL_CYCLES-1)) when i.cell /= PE_TOP else value_empty;
-    end generate;
+  gen_normalize_emult_m_es2 : if POSIT_ES = 2 generate
+    posit_normalize_ml_distm : posit_normalize_product_prod_sum_sum port map (
+      in1       => step_raw.emult.m,
+      result    => emult_m_val,
+      truncated => posit_truncated(4),
+      inf       => open,
+      zero      => open
+      );
+  end generate;
+  gen_normalize_emult_m_es3 : if POSIT_ES = 3 generate
+    posit_normalize_ml_distm : posit_normalize_product_prod_sum_sum_es3 port map (
+      in1       => step_raw.emult.m,
+      result    => emult_m_val,
+      truncated => posit_truncated(4),
+      inf       => open,
+      zero      => open
+      );
+  end generate;
 
-    ISTDF : if DISABLE_THETA /= '1' generate
-      step_raw.init.mids.it <= prod2val(step_raw.emult.i) when i.cell /= PE_TOP else value_empty;
-    end generate;
-    -- Initial Signal D depending on if Upsilon mult is Disabled is True
-    ISUDT : if DISABLE_UPSILON = '1' generate
-      step_raw.init.mids.dt <= sum2val(mul_upsilon_sr(PE_MUL_CYCLES-1)) when i.cell /= PE_TOP else i.initial;
-    end generate;
-    ISUDF : if DISABLE_UPSILON /= '1' generate
-      step_raw.init.mids.dt <= prod2val(step_raw.emult.d) when i.cell /= PE_TOP else i.initial;
-    end generate;
+  gen_normalize_emult_i_es2 : if POSIT_ES = 2 generate
+    posit_normalize_mul_theta : posit_normalize_prod_sum port map (
+      in1       => mul_theta_sr(PE_MUL_CYCLES-1),
+      result    => mul_theta_val,
+      truncated => mul_theta_truncated_sr(PE_MUL_CYCLES-1),
+      inf       => open,
+      zero      => open
+      );
+  end generate;
+  gen_normalize_emult_i_es3 : if POSIT_ES = 3 generate
+    posit_normalize_mul_theta : posit_normalize_prod_sum_es3 port map (
+      in1       => mul_theta_sr(PE_MUL_CYCLES-1),
+      result    => mul_theta_val,
+      truncated => mul_theta_truncated_sr(PE_MUL_CYCLES-1),
+      inf       => open,
+      zero      => open
+      );
+  end generate;
+
+  gen_normalize_upsilon_es2 : if POSIT_ES = 2 generate
+    posit_normalize_mul_upsilon : posit_normalize_prod_sum port map (
+      in1       => mul_upsilon_sr(PE_MUL_CYCLES-1),
+      truncated => mul_upsilon_truncated_sr(PE_MUL_CYCLES-1),
+      result    => mul_upsilon_val,
+      inf       => open,
+      zero      => open
+      );
+  end generate;
+  gen_normalize_upsilon_es3 : if POSIT_ES = 3 generate
+    posit_normalize_mul_upsilon : posit_normalize_prod_sum_es3 port map (
+      in1       => mul_upsilon_sr(PE_MUL_CYCLES-1),
+      truncated => mul_upsilon_truncated_sr(PE_MUL_CYCLES-1),
+      result    => mul_upsilon_val,
+      inf       => open,
+      zero      => open
+      );
+  end generate;
+
+  -- gen_normalize_gamma_es2 : if POSIT_ES = 2 generate
+  --   posit_normalize_add_gamma : posit_normalize_prod port map (
+  --     in1       => add_gamma_sr(PE_ADD_CYCLES-1),
+  --     result    => add_gamma_val,
+  --     truncated => '0',
+  --     inf       => open,
+  --     zero      => open
+  --     );
+  -- end generate;
+  -- gen_normalize_gamma_es3 : if POSIT_ES = 3 generate
+  --   posit_normalize_add_gamma : posit_normalize_prod_es3 port map (
+  --     in1       => add_gamma_sr(PE_ADD_CYCLES-1),
+  --     result    => add_gamma_val,
+  --     truncated => '0',
+  --     inf       => open,
+  --     zero      => open
+  --     );
+  -- end generate;
+
+  gen_normalize_albetl_es2 : if POSIT_ES = 2 generate
+    posit_normalize_add_albetl : posit_normalize_prod_sum port map (
+      in1       => step_raw.add.albetl,
+      result    => step.add.albetl,
+      truncated => posit_truncated(0),
+      inf       => open,
+      zero      => open
+      );
+  end generate;
+  gen_normalize_albetl_es3 : if POSIT_ES = 3 generate
+    posit_normalize_add_albetl : posit_normalize_prod_sum_es3 port map (
+      in1       => step_raw.add.albetl,
+      result    => step.add.albetl,
+      truncated => posit_truncated(0),
+      inf       => open,
+      zero      => open
+      );
+  end generate;
+
+  -- step_raw.init.mids.it <= prodsum2val(mul_theta_sr(PE_MUL_CYCLES-1))   when i.cell /= PE_TOP else value_empty;
+  step.init.mids.it <= mul_theta_val when i.cell /= PE_TOP else (others => '0');
+  gen_es2_extract_it : if POSIT_ES = 2 generate
+    extract_it_es2 : posit_extract_raw port map (
+      in1      => step.init.mids.it,
+      absolute => open,
+      result   => step_raw.init.mids.it
+      );
+  end generate;
+  gen_es3_extract_it : if POSIT_ES = 3 generate
+    extract_it_es3 : posit_extract_raw_es3 port map (
+      in1      => step.init.mids.it,
+      absolute => open,
+      result   => step_raw.init.mids.it
+      );
+  end generate;
+
+  -- step_raw.init.mids.dt <= prodsum2val(mul_upsilon_sr(PE_MUL_CYCLES-1)) when i.cell /= PE_TOP else i.initial;
+  step.init.mids.dt <= mul_upsilon_val when i.cell /= PE_TOP else initial_val;
+  gen_es2_extract_dt : if POSIT_ES = 2 generate
+    extract_dt_es2 : posit_extract_raw port map (
+      in1      => step.init.mids.dt,
+      absolute => open,
+      result   => step_raw.init.mids.dt
+      );
+  end generate;
+  gen_es3_extract_dt : if POSIT_ES = 3 generate
+    extract_dt_es3 : posit_extract_raw_es3 port map (
+      in1      => step.init.mids.dt,
+      absolute => open,
+      result   => step_raw.init.mids.dt
+      );
+  end generate;
+
 
 ----------------------------------------------------------------------------------------------------------------------- Coming from the top left
   -- Initial Signal for top left; if this is the First PE we get M,I,D [i-1][j-1] from the inputs
@@ -319,88 +466,109 @@ begin
   -- Substep adding alpha + beta
   gen_es2_add_alpha_beta : if POSIT_ES = 2 generate
     add_alpha_beta : positadd_prod_4_raw port map (
-      clk    => cr.clk,
-      in1    => step_raw.trans.almtl,
-      in2    => step_raw.trans.beitl,
-      start  => step_raw.init.valid,
-      result => step_raw.add.albetl,
-      done   => fp_valids(7)
+      clk       => cr.clk,
+      in1       => step_raw.trans.almtl,
+      in2       => step_raw.trans.beitl,
+      start     => step_raw.init.valid,
+      result    => step_raw.add.albetl,
+      done      => fp_valids(7),
+      truncated => posit_truncated(0)
       );
   end generate;
   gen_es3_add_alpha_beta : if POSIT_ES = 3 generate
-    add_alpha_beta : positadd_prod_4_raw_es3 port map (
-      clk    => cr.clk,
-      in1    => step_raw.trans.almtl,
-      in2    => step_raw.trans.beitl,
-      start  => step_raw.init.valid,
-      result => step_raw.add.albetl,
-      done   => fp_valids(7)
+    add_alpha_beta : positadd_prod_4_raw port map (
+      clk       => cr.clk,
+      in1       => step_raw.trans.almtl,
+      in2       => step_raw.trans.beitl,
+      start     => step_raw.init.valid,
+      result    => step_raw.add.albetl,
+      done      => fp_valids(7),
+      truncated => posit_truncated(0)
       );
   end generate;
 
   -- Substep adding alpha + beta + delayed gamma
   gen_es2_add_alpha_beta_gamma : if POSIT_ES = 2 generate
-    add_alpha_beta_gamma : positadd_4_raw port map (
-      clk    => cr.clk,
-      in1    => prodsum2val(step_raw.add.albetl),
-      in2    => prod2val(add_gamma_sr(PE_ADD_CYCLES-1)),
-      start  => step_raw.init.valid,
-      result => step_raw.add.albegatl,
-      done   => fp_valids(8)
+    add_alpha_beta_gamma : positadd_4_truncated_prodsum_raw port map (
+      clk           => cr.clk,
+      in1           => step_raw.add.albetl,
+      in1_truncated => posit_truncated(0),
+      in2           => prod2prodsum(add_gamma_sr(PE_ADD_CYCLES-1)),
+      in2_truncated => '0',
+      start         => step_raw.init.valid,
+      result        => step_raw.add.albegatl,
+      done          => fp_valids(8),
+      truncated     => posit_truncated(1)
       );
+  -- : positadd_4_raw port map (
+  --  clk       => cr.clk,
+  --  in1       => add_albetl,
+  --  in2       => add_gamma,
+  --  start     => step_raw.init.valid,
+  --  result    => step_raw.add.albegatl,
+  --  done      => fp_valids(8),
+  --  truncated => posit_truncated(1)
+  --  );
   end generate;
   gen_es3_add_alpha_beta_gamma : if POSIT_ES = 3 generate
-    add_alpha_beta_gamma : positadd_4_raw_es3 port map (
-      clk    => cr.clk,
-      in1    => prodsum2val(step_raw.add.albetl),
-      in2    => prod2val(add_gamma_sr(PE_ADD_CYCLES-1)),
-      start  => step_raw.init.valid,
-      result => step_raw.add.albegatl,
-      done   => fp_valids(8)
+    add_alpha_beta_gamma : positadd_4_truncated_prodsum_raw_es3 port map (
+      clk           => cr.clk,
+      in1           => step_raw.add.albetl,
+      in1_truncated => posit_truncated(0),
+      in2           => prod2prodsum(add_gamma_sr(PE_ADD_CYCLES-1)),
+      in2_truncated => '0',
+      start         => step_raw.init.valid,
+      result        => step_raw.add.albegatl,
+      done          => fp_valids(8),
+      truncated     => posit_truncated(1)
       );
   end generate;
   -- END alpha + beta + delayed gamma
 
 
   gen_es2_add_delta_epsilon : if POSIT_ES = 2 generate
-    add_delta_epsilon : positadd_8_raw port map (
-      clk    => cr.clk,
-      in1    => prod2val(step_raw.trans.demt),
-      in2    => prod2val(step_raw.trans.epit),
-      start  => step_raw.init.valid,
-      result => step_raw.add.deept,
-      done   => fp_valids(9)
+    add_delta_epsilon : positadd_prod_8_raw port map (
+      clk       => cr.clk,
+      in1       => step_raw.trans.demt,
+      in2       => step_raw.trans.epit,
+      start     => step_raw.init.valid,
+      result    => step_raw.add.deept,
+      done      => fp_valids(9),
+      truncated => posit_truncated(2)
       );
   end generate;
   gen_es3_add_delta_epsilon : if POSIT_ES = 3 generate
-    add_delta_epsilon : positadd_8_raw_es3 port map (
-      clk    => cr.clk,
-      in1    => prod2val(step_raw.trans.demt),
-      in2    => prod2val(step_raw.trans.epit),
-      start  => step_raw.init.valid,
-      result => step_raw.add.deept,
-      done   => fp_valids(9)
+    add_delta_epsilon : positadd_prod_8_raw_es3 port map (
+      clk       => cr.clk,
+      in1       => step_raw.trans.demt,
+      in2       => step_raw.trans.epit,
+      start     => step_raw.init.valid,
+      result    => step_raw.add.deept,
+      done      => fp_valids(9),
+      truncated => posit_truncated(2)
       );
   end generate;
 
   gen_es2_add_zeta_eta : if POSIT_ES = 2 generate
-    add_zeta_eta : positadd_8_raw port map (
-      clk    => cr.clk,
-      in1    => prod2val(step_raw.trans.zeml),
-      in2    => prod2val(step_raw.trans.etdl),
-      start  => step_raw.init.valid,
-      result => step_raw.add.zeett,
-      done   => fp_valids(10)
+    add_zeta_eta : positadd_prod_8_raw port map (
+      clk       => cr.clk,
+      in1       => step_raw.trans.zeml,
+      in2       => step_raw.trans.etdl,
+      start     => step_raw.init.valid,
+      result    => step_raw.add.zeett,
+      done      => fp_valids(10),
+      truncated => posit_truncated(3)
       );
   end generate;
   gen_es3_add_zeta_eta : if POSIT_ES = 3 generate
-    add_zeta_eta : positadd_8_raw_es3 port map (
-      clk    => cr.clk,
-      in1    => prod2val(step_raw.trans.zeml),
-      in2    => prod2val(step_raw.trans.etdl),
-      start  => step_raw.init.valid,
-      result => step_raw.add.zeett,
-      done   => fp_valids(10)
+    add_zeta_eta : positadd_prod_8_raw_es3 port map (
+      clk       => cr.clk,
+      in1       => step_raw.trans.zeml,
+      in2       => step_raw.trans.etdl,
+      start     => step_raw.init.valid,
+      result    => step_raw.add.zeett,
+      done      => fp_valids(10),
+      truncated => posit_truncated(3)
       );
   end generate;
 
@@ -433,79 +601,34 @@ begin
   end process;
 
   gen_es2_mul_lambda : if POSIT_ES = 2 generate
-    mul_lambda : positmult_4_raw_sumval port map (
-      clk    => cr.clk,
-      in1    => step_raw.add.albegatl,
-      in2    => distm,
-      start  => step_raw.init.valid,
-      result => step_raw.emult.m,
-      done   => fp_valids(11)
+    mul_lambda : positmult_4_truncated_raw_prodsumsum port map (
+      clk           => cr.clk,
+      in1           => step_raw.add.albegatl,
+      in1_truncated => posit_truncated(1),
+      in2           => val2prodsumsum(distm),
+      in2_truncated => '0',
+      start         => step_raw.init.valid,
+      result        => step_raw.emult.m,
+      done          => fp_valids(11),
+      truncated     => posit_truncated(4)
       );
   end generate;
   gen_es3_mul_lambda : if POSIT_ES = 3 generate
-    mul_lambda : positmult_4_raw_sumval_es3 port map (
-      clk    => cr.clk,
-      in1    => step_raw.add.albegatl,
-      in2    => distm,
-      start  => step_raw.init.valid,
-      result => step_raw.emult.m,
-      done   => fp_valids(11)
+    mul_lambda : positmult_4_truncated_raw_prodsumsum_es3 port map (
+      clk           => cr.clk,
+      in1           => step_raw.add.albegatl,
+      in1_truncated => posit_truncated(1),
+      in2           => val2prodsumsum(distm),
+      in2_truncated => '0',
+      start         => step_raw.init.valid,
+      result        => step_raw.emult.m,
+      done          => fp_valids(11),
+      truncated     => posit_truncated(4)
       );
   end generate;
 
-  THETA_OFF : if DISABLE_THETA = '1' generate
-    fp_valids(12) <= '1';
-  end generate;
-
-  THETA_MULT : if DISABLE_THETA /= '1' generate
-    gen_es2_mul_theta : if POSIT_ES = 2 generate
-      mul_theta : positmult_4_raw_sumval port map (
-        clk    => cr.clk,
-        in1    => step_raw.add.deept,
-        in2    => step_raw.add.emis.theta,
-        start  => step_raw.init.valid,
-        result => step_raw.emult.i,
-        done   => fp_valids(12)
-        );
-    end generate;
-    gen_es3_mul_theta : if POSIT_ES = 3 generate
-      mul_theta : positmult_4_raw_sumval_es3 port map (
-        clk    => cr.clk,
-        in1    => step_raw.add.deept,
-        in2    => step_raw.add.emis.theta,
-        start  => step_raw.init.valid,
-        result => step_raw.emult.i,
-        done   => fp_valids(12)
-        );
-    end generate;
-  end generate;
-
-  UPSILON_OFF : if DISABLE_UPSILON = '1' generate
-    fp_valids(13) <= '1';
-  end generate;
-
-  UPSILON_MULT : if DISABLE_UPSILON /= '1' generate
-    gen_es2_mul_upsilon : if POSIT_ES = 2 generate
-      mul_upsilon : positmult_4_raw_sumval port map (
-        clk    => cr.clk,
-        in1    => step_raw.add.zeett,
-        in2    => step_raw.add.emis.upsilon,
-        start  => step_raw.init.valid,
-        result => step_raw.emult.d,
-        done   => fp_valids(13)
-        );
-    end generate;
-    gen_es3_mul_upsilon : if POSIT_ES = 3 generate
-      mul_upsilon : positmult_4_raw_sumval_es3 port map (
-        clk    => cr.clk,
-        in1    => step_raw.add.zeett,
-        in2    => step_raw.add.emis.upsilon,
-        start  => step_raw.init.valid,
-        result => step_raw.emult.d,
-        done   => fp_valids(13)
-        );
-    end generate;
-  end generate;
+  fp_valids(12) <= '1';
+  fp_valids(13) <= '1';
 
   ---------------------------------------------------------------------------------------------------
   --    ____         __  __
@@ -537,41 +660,44 @@ begin
   -- Shift register to match the latency of the lambda multiplier in case theta and upsilon
   -- are always 1.0
   ---------------------------------------------------------------------------------------------------
-  skip_theta_sr : if DISABLE_THETA = '1' generate
-    skip_mul_theta_sr : process(cr.clk)
-    begin
-      if rising_edge(cr.clk) then
-        if cr.rst = '1' then
-          -- Reset shift register:
-          mul_theta_sr <= (others => value_sum_empty);
-        else
-          mul_theta_sr(0) <= step_raw.add.deept;
-          -- Shifts:
-          for I in 1 to PE_MUL_CYCLES-1 loop
-            mul_theta_sr(I) <= mul_theta_sr(I-1);
-          end loop;
-        end if;
-      end if;
-    end process;
-  end generate;
 
-  skip_upsilon_sr : if DISABLE_UPSILON = '1' generate
-    skip_mul_upsilon_sr : process(cr.clk)
-    begin
-      if rising_edge(cr.clk) then
-        if cr.rst = '1' then
-          -- Reset shift register:
-          mul_upsilon_sr <= (others => value_sum_empty);
-        else
-          mul_upsilon_sr(0) <= step_raw.add.zeett;
-          -- Shifts:
-          for I in 1 to PE_MUL_CYCLES-1 loop
-            mul_upsilon_sr(I) <= mul_upsilon_sr(I-1);
-          end loop;
-        end if;
+  skip_mul_theta_sr : process(cr.clk)
+  begin
+    if rising_edge(cr.clk) then
+      if cr.rst = '1' then
+        -- Reset shift register:
+        mul_theta_sr           <= (others => value_prod_sum_empty);
+        mul_theta_truncated_sr <= (others => '0');
+      else
+        mul_theta_sr(0)           <= step_raw.add.deept;
+        mul_theta_truncated_sr(0) <= posit_truncated(2);
+        -- Shifts:
+        for I in 1 to PE_MUL_CYCLES-1 loop
+          mul_theta_sr(I)           <= mul_theta_sr(I-1);
+          mul_theta_truncated_sr(I) <= mul_theta_truncated_sr(I-1);
+        end loop;
       end if;
-    end process;
-  end generate;
+    end if;
+  end process;
+
+  skip_mul_upsilon_sr : process(cr.clk)
+  begin
+    if rising_edge(cr.clk) then
+      if cr.rst = '1' then
+        -- Reset shift register:
+        mul_upsilon_sr           <= (others => value_prod_sum_empty);
+        mul_upsilon_truncated_sr <= (others => '0');
+      else
+        mul_upsilon_sr(0)           <= step_raw.add.zeett;
+        mul_upsilon_truncated_sr(0) <= posit_truncated(3);
+        -- Shifts:
+        for I in 1 to PE_MUL_CYCLES-1 loop
+          mul_upsilon_sr(I)           <= mul_upsilon_sr(I-1);
+          mul_upsilon_truncated_sr(I) <= mul_upsilon_truncated_sr(I-1);
+        end loop;
+      end if;
+    end if;
+  end process;
 
   ---------------------------------------------------------------------------------------------------
   -- Shift register to do the following:
@@ -655,39 +781,107 @@ begin
   o_normal.emis <= step_raw.emult.emis;
   o_normal.tmis <= step_raw.emult.tmis;
 
-    o_normal.mids.ml  <= prod2val(step_raw.emult.m);
-    o_normal.mids.mtl <= value_empty;
-    o_normal.mids.mt  <= prod2val(step_raw.emult.m);
 
-    -- Output I depending on if Theta mult is Disabled is True
-    TDT : if DISABLE_THETA = '1' generate
-      o_normal.mids.il <= sum2val(mul_theta_sr(PE_MUL_CYCLES-1));
-    end generate;
-    TDF : if DISABLE_THETA /= '1' generate
-      o_normal.mids.il <= prod2val(step_raw.emult.i);
-    end generate;
+  gen_es2_extract_emult_m_val : if POSIT_ES = 2 generate
+    extract_mt_es2 : posit_extract_raw port map (
+      in1      => emult_m_val,
+      absolute => open,
+      result   => mids_ml
+      );
+  end generate;
+  gen_es3_extract_emult_m_val : if POSIT_ES = 3 generate
+    extract_mt_es3 : posit_extract_raw_es3 port map (
+      in1      => emult_m_val,
+      absolute => open,
+      result   => mids_ml
+      );
+  end generate;
 
-    o_normal.mids.itl <= value_empty;
-    o_normal.mids.it  <= value_empty;
+  gen_es2_extract_mul_theta_val : if POSIT_ES = 2 generate
+    extract_mt_es2 : posit_extract_raw port map (
+      in1      => mul_theta_val,
+      absolute => open,
+      result   => mids_il
+      );
+  end generate;
+  gen_es3_extract_mul_theta_val : if POSIT_ES = 3 generate
+    extract_mt_es3 : posit_extract_raw_es3 port map (
+      in1      => mul_theta_val,
+      absolute => open,
+      result   => mids_il
+      );
+  end generate;
 
-    -- Output D depending on if Upsilon mult is Disabled is True
-    UDT : if DISABLE_UPSILON = '1' generate
-      o_normal.mids.dl <= sum2val(mul_upsilon_sr(PE_MUL_CYCLES-1));
-    end generate;
-    UDF : if DISABLE_UPSILON /= '1' generate
-      o_normal.mids.dl <= prod2val(step_raw.emult.i);
-    end generate;
+  gen_es2_extract_mul_upsilon_val : if POSIT_ES = 2 generate
+    extract_upsilon_es2 : posit_extract_raw port map (
+      in1      => mul_upsilon_val,
+      absolute => open,
+      result   => mids_dl
+      );
+  end generate;
+  gen_es3_extract_mul_upsilon_val : if POSIT_ES = 3 generate
+    extract_upsilon_es3 : posit_extract_raw_es3 port map (
+      in1      => mul_upsilon_val,
+      absolute => open,
+      result   => mids_dl
+      );
+  end generate;
 
-    o_normal.mids.dtl <= value_empty;
-    o_normal.mids.dt  <= value_empty;
+  -- gen_es2_extract_add_gamma_val : if POSIT_ES = 2 generate
+  --   extract_gamma_es2 : posit_extract_raw port map (
+  --     in1      => add_gamma_val,
+  --     absolute => open,
+  --     result   => add_gamma
+  --     );
+  -- end generate;
+  -- gen_es3_extract_add_gamma_val : if POSIT_ES = 3 generate
+  --   extract_gamma_es3 : posit_extract_raw_es3 port map (
+  --     in1      => add_gamma_val,
+  --     absolute => open,
+  --     result   => add_gamma
+  --     );
+  -- end generate;
 
-    -- Output X & Y
-    o_normal.x <= x_sr(PE_CYCLES-1);
-    o_normal.y <= y_sr(PE_CYCLES-1);
+  gen_es2_extract_add_albetl_val : if POSIT_ES = 2 generate
+    extract_add_albetl : posit_extract_raw port map (
+      in1      => step.add.albetl,
+      absolute => open,
+      result   => add_albetl
+      );
+  end generate;
+  gen_es3_extract_add_albetl_val : if POSIT_ES = 3 generate
+    extract_add_albetl : posit_extract_raw_es3 port map (
+      in1      => step.add.albetl,
+      absolute => open,
+      result   => add_albetl
+      );
+  end generate;
 
-    o_normal.initial <= initial_sr(PE_CYCLES-1);
+  -- o_normal.mids.ml  <= prod2val(step_raw.emult.m);
+  o_normal.mids.ml  <= mids_ml;
+  o_normal.mids.mtl <= value_empty;
+  -- o_normal.mids.mt  <= prod2val(step_raw.emult.m);
+  o_normal.mids.mt  <= mids_ml;
 
-    o_normal.ready <= '1';
+  -- o_normal.mids.il <= prodsum2val(mul_theta_sr(PE_MUL_CYCLES-1));
+  o_normal.mids.il <= mids_il;
+
+  o_normal.mids.itl <= value_empty;
+  o_normal.mids.it  <= value_empty;
+
+  -- o_normal.mids.dl <= prodsum2val(mul_upsilon_sr(PE_MUL_CYCLES-1));
+  o_normal.mids.dl <= mids_dl;
+
+  o_normal.mids.dtl <= value_empty;
+  o_normal.mids.dt  <= value_empty;
+
+  -- Output X & Y
+  o_normal.x <= x_sr(PE_CYCLES-1);
+  o_normal.y <= y_sr(PE_CYCLES-1);
+
+  o_normal.initial <= initial_sr(PE_CYCLES-1);
+
+  o_normal.ready <= '1';
 
   ---------------------------------------------------------------------------------------------------
   --    ____                               ____        _               _
@@ -734,167 +928,230 @@ begin
   o <= o_buf;
 
   -- POSIT DEBUGGING
-  -- posit_normalize_ml_es31 : posit_normalize port map (
-  --   in1    => prod2val(step_raw.trans.almtl),
-  --   result => posit_norm.trans.almtl,
+  posit_normalize_ml_initial : posit_normalize port map (
+    in1       => step_raw.init.initial,
+    result    => posit_norm.init.initial,
+    truncated => '0',
+    inf       => open,
+    zero      => open
+    );
+  posit_normalize_ml_es31 : posit_normalize_prod port map (
+    in1       => step_raw.trans.almtl,
+    result    => posit_norm.trans.almtl,
+    truncated => '0',
+    inf       => open,
+    zero      => open
+    );
+  posit_normalize_ml_es32 : posit_normalize_prod port map (
+    in1       => step_raw.trans.beitl,
+    result    => posit_norm.trans.beitl,
+    truncated => '0',
+    inf       => open,
+    zero      => open
+    );
+  posit_normalize_ml_es33 : posit_normalize_prod port map (
+    in1       => step_raw.trans.gadtl,
+    result    => posit_norm.trans.gadtl,
+    truncated => '0',
+    inf       => open,
+    zero      => open
+    );
+  posit_normalize_ml_es34 : posit_normalize_prod port map (
+    in1       => (step_raw.trans.demt),
+    result    => posit_norm.trans.demt,
+    truncated => '0',
+    inf       => open,
+    zero      => open
+    );
+  posit_normalize_ml_es35 : posit_normalize_prod port map (
+    in1       => (step_raw.trans.epit),
+    result    => posit_norm.trans.epit,
+    truncated => '0',
+    inf       => open,
+    zero      => open
+    );
+  posit_normalize_ml_es36 : posit_normalize_prod port map (
+    in1       => (step_raw.trans.zeml),
+    result    => posit_norm.trans.zeml,
+    truncated => '0',
+    inf       => open,
+    zero      => open
+    );
+  posit_normalize_ml_es37 : posit_normalize_prod port map (
+    in1       => (step_raw.trans.etdl),
+    result    => posit_norm.trans.etdl,
+    truncated => '0',
+    inf       => open,
+    zero      => open
+    );
+  posit_normalize_ml_es38 : posit_normalize_prod_sum port map (
+    in1       => (step_raw.add.albetl),
+    result    => posit_norm.add.albetl,
+    truncated => posit_truncated(0),
+    inf       => open,
+    zero      => open
+    );
+  -- posit_normalize_ml_es39 : posit_normalize_sum port map (
+  --   in1       => (step_raw.add.albegatl),
+  --   result    => posit_norm.add.albegatl,
   --   truncated => '0',
-  --   inf    => open,
-  --   zero   => open
+  --   inf       => open,
+  --   zero      => open
   --   );
-  -- posit_normalize_ml_es32 : posit_normalize port map (
-  --   in1    => prod2val(step_raw.trans.beitl),
-  --   result => posit_norm.trans.beitl,
-  --   truncated => '0',
-  --   inf    => open,
-  --   zero   => open
-  --   );
-  -- posit_normalize_ml_es33 : posit_normalize port map (
-  --   in1    => prod2val(step_raw.trans.gadtl),
-  --   result => posit_norm.trans.gadtl,
-  --   truncated => '0',
-  --   inf    => open,
-  --   zero   => open
-  --   );
-  -- posit_normalize_ml_es34 : posit_normalize port map (
-  --   in1    => prod2val(step_raw.trans.demt),
-  --   result => posit_norm.trans.demt,
-  --   truncated => '0',
-  --   inf    => open,
-  --   zero   => open
-  --   );
-  -- posit_normalize_ml_es35 : posit_normalize port map (
-  --   in1    => prod2val(step_raw.trans.epit),
-  --   result => posit_norm.trans.epit,
-  --   truncated => '0',
-  --   inf    => open,
-  --   zero   => open
-  --   );
-  -- posit_normalize_ml_es36 : posit_normalize port map (
-  --   in1    => prod2val(step_raw.trans.zeml),
-  --   result => posit_norm.trans.zeml,
-  --   truncated => '0',
-  --   inf    => open,
-  --   zero   => open
-  --   );
-  -- posit_normalize_ml_es37 : posit_normalize port map (
-  --   in1    => prod2val(step_raw.trans.etdl),
-  --   result => posit_norm.trans.etdl,
-  --   truncated => '0',
-  --   inf    => open,
-  --   zero   => open
-  --   );
-  -- posit_normalize_ml_es38 : posit_normalize port map (
-  --   in1    => prodsum2val(step_raw.add.albetl),
-  --   result => posit_norm.add.albetl,
-  --   truncated => '0',
-  --   inf    => open,
-  --   zero   => open
-  --   );
-  -- posit_normalize_ml_es39 : posit_normalize port map (
-  --   in1    => sum2val(step_raw.add.albegatl),
-  --   result => posit_norm.add.albegatl,
-  --   truncated => '0',
-  --   inf    => open,
-  --   zero   => open
-  --   );
-  -- posit_normalize_ml_es310 : posit_normalize port map (
-  --   in1    => sum2val(step_raw.add.deept),
-  --   result => posit_norm.add.deept,
-  --   truncated => '0',
-  --   inf    => open,
-  --   zero   => open
-  --   );
-  -- posit_normalize_ml_es311 : posit_normalize port map (
-  --   in1    => sum2val(step_raw.add.zeett),
-  --   result => posit_norm.add.zeett,
-  --   truncated => '0',
-  --   inf    => open,
-  --   zero   => open
-  --   );
-  -- posit_normalize_ml_es312 : posit_normalize port map (
-  --   in1    => prod2val(step_raw.emult.m),
-  --   result => posit_norm.emult.m,
-  --   truncated => '0',
-  --   inf    => open,
-  --   zero   => open
-  --   );
-  -- posit_normalize_ml_es313 : posit_normalize port map (
-  --   in1    => prod2val(step_raw.emult.i),
-  --   result => posit_norm.emult.i,
-  --   truncated => '0',
-  --   inf    => open,
-  --   zero   => open
-  --   );
-  -- posit_normalize_ml_es314 : posit_normalize port map (
-  --   in1    => prod2val(step_raw.emult.d),
-  --   result => posit_norm.emult.d,
-  --   truncated => '0',
-  --   inf    => open,
-  --   zero   => open
-  --   );
-  -- posit_normalize_ml_es410 : posit_normalize port map (
-  --   in1    => step_raw.init.tmis.alpha,
-  --   result => posit_norm.init.tmis.alpha,
-  --   truncated => '0',
-  --   inf    => open,
-  --   zero   => open
-  --   );
-  -- posit_normalize_ml_es411 : posit_normalize port map (
-  --   in1    => step_raw.init.tmis.beta,
-  --   result => posit_norm.init.tmis.beta,
-  --   truncated => '0',
-  --   inf    => open,
-  --   zero   => open
-  --   );
-  -- posit_normalize_ml_es412 : posit_normalize port map (
-  --   in1    => step_raw.init.tmis.delta,
-  --   result => posit_norm.init.tmis.delta,
-  --   truncated => '0',
-  --   inf    => open,
-  --   zero   => open
-  --   );
-  -- posit_normalize_ml_es413 : posit_normalize port map (
-  --   in1    => step_raw.init.tmis.epsilon,
-  --   result => posit_norm.init.tmis.epsilon,
-  --   truncated => '0',
-  --   inf    => open,
-  --   zero   => open
-  --   );
-  -- posit_normalize_ml_es414 : posit_normalize port map (
-  --   in1    => step_raw.init.tmis.zeta,
-  --   result => posit_norm.init.tmis.zeta,
-  --   truncated => '0',
-  --   inf    => open,
-  --   zero   => open
-  --   );
-  -- posit_normalize_ml_es415 : posit_normalize port map (
-  --   in1    => step_raw.init.tmis.eta,
-  --   result => posit_norm.init.tmis.eta,
-  --   truncated => '0',
-  --   inf    => open,
-  --   zero   => open
-  --   );
-  --   posit_normalize_ml_es514 : posit_normalize port map (
-  --   in1    => step_raw.init.mids.itl,
-  --   result => posit_norm.init.mids.itl,
-  --   truncated => '0',
-  --   inf    => open,
-  --   zero   => open
-  --   );
-  -- posit_normalize_ml_es515 : posit_normalize port map (
-  --   in1    => step_raw.init.mids.dtl,
-  --   result => posit_norm.init.mids.dtl,
-  --   truncated => '0',
-  --   inf    => open,
-  --   zero   => open
-  --   );
-  -- posit_normalize_ml_es516 : posit_normalize port map (
-  --   in1    => step_raw.init.mids.dt,
-  --   result => posit_norm.init.mids.dt,
-  --   truncated => '0',
-  --   inf    => open,
-  --   zero   => open
-  --   );
+  posit_normalize_ml_es310 : posit_normalize_prod_sum port map (
+    in1       => (step_raw.add.deept),
+    result    => posit_norm.add.deept,
+    truncated => '0',
+    inf       => open,
+    zero      => open
+    );
+  posit_normalize_ml_es311 : posit_normalize_prod_sum port map (
+    in1       => (step_raw.add.zeett),
+    result    => posit_norm.add.zeett,
+    truncated => '0',
+    inf       => open,
+    zero      => open
+    );
+  posit_normalize_ml_es312 : posit_normalize_product_prod_sum_sum port map (
+    in1       => (step_raw.emult.m),
+    result    => posit_norm.emult.m,
+    truncated => posit_truncated(4),
+    inf       => open,
+    zero      => open
+    );
+  posit_normalize_ml_es313 : posit_normalize_prod port map (
+    in1       => (step_raw.emult.i),
+    result    => posit_norm.emult.i,
+    truncated => '0',
+    inf       => open,
+    zero      => open
+    );
+  posit_normalize_ml_es314 : posit_normalize_prod port map (
+    in1       => (step_raw.emult.d),
+    result    => posit_norm.emult.d,
+    truncated => '0',
+    inf       => open,
+    zero      => open
+    );
+  posit_normalize_ml_es410 : posit_normalize port map (
+    in1       => step_raw.init.tmis.alpha,
+    result    => posit_norm.init.tmis.alpha,
+    truncated => '0',
+    inf       => open,
+    zero      => open
+    );
+  posit_normalize_ml_es411 : posit_normalize port map (
+    in1       => step_raw.init.tmis.beta,
+    result    => posit_norm.init.tmis.beta,
+    truncated => '0',
+    inf       => open,
+    zero      => open
+    );
+  posit_normalize_ml_es412 : posit_normalize port map (
+    in1       => step_raw.init.tmis.delta,
+    result    => posit_norm.init.tmis.delta,
+    truncated => '0',
+    inf       => open,
+    zero      => open
+    );
+  posit_normalize_ml_es413 : posit_normalize port map (
+    in1       => step_raw.init.tmis.epsilon,
+    result    => posit_norm.init.tmis.epsilon,
+    truncated => '0',
+    inf       => open,
+    zero      => open
+    );
+  posit_normalize_ml_es414 : posit_normalize port map (
+    in1       => step_raw.init.tmis.zeta,
+    result    => posit_norm.init.tmis.zeta,
+    truncated => '0',
+    inf       => open,
+    zero      => open
+    );
+  posit_normalize_ml_es415 : posit_normalize port map (
+    in1       => step_raw.init.tmis.eta,
+    result    => posit_norm.init.tmis.eta,
+    truncated => '0',
+    inf       => open,
+    zero      => open
+    );
+  posit_normalize_ml_es000 : posit_normalize port map (
+    in1       => step_raw.init.tmis.eta,
+    result    => posit_norm.init.tmis.eta,
+    truncated => '0',
+    inf       => open,
+    zero      => open
+    );
+  posit_normalize_ml_es514_it : posit_normalize port map (
+    in1       => step_raw.init.mids.it,
+    result    => posit_norm.init.mids.it,
+    truncated => '0',
+    inf       => open,
+    zero      => open
+    );
+  posit_normalize_ml_es514_il : posit_normalize port map (
+    in1       => step_raw.init.mids.il,
+    result    => posit_norm.init.mids.il,
+    truncated => '0',
+    inf       => open,
+    zero      => open
+    );
+  posit_normalize_ml_es514_ml : posit_normalize port map (
+    in1       => step_raw.init.mids.ml,
+    result    => posit_norm.init.mids.ml,
+    truncated => '0',
+    inf       => open,
+    zero      => open
+    );
+  posit_normalize_ml_es514_mtl : posit_normalize port map (
+    in1       => step_raw.init.mids.mtl,
+    result    => posit_norm.init.mids.mtl,
+    truncated => '0',
+    inf       => open,
+    zero      => open
+    );
+  posit_normalize_ml_es514_dtl : posit_normalize port map (
+    in1       => step_raw.init.mids.dtl,
+    result    => posit_norm.init.mids.dtl,
+    truncated => '0',
+    inf       => open,
+    zero      => open
+    );
+  posit_normalize_ml_es514_dl : posit_normalize port map (
+    in1       => step_raw.init.mids.dl,
+    result    => posit_norm.init.mids.dl,
+    truncated => '0',
+    inf       => open,
+    zero      => open
+    );
+  posit_normalize_ml_es514_mt123 : posit_normalize port map (
+    in1       => step_raw.init.mids.mt,
+    result    => posit_norm.init.mids.mt,
+    truncated => '0',
+    inf       => open,
+    zero      => open
+    );
+  posit_normalize_ml_es514 : posit_normalize port map (
+    in1       => step_raw.init.mids.itl,
+    result    => posit_norm.init.mids.itl,
+    truncated => '0',
+    inf       => open,
+    zero      => open
+    );
+  posit_normalize_ml_es516 : posit_normalize port map (
+    in1       => step_raw.init.mids.dt,
+    result    => posit_norm.init.mids.dt,
+    truncated => '0',
+    inf       => open,
+    zero      => open
+    );
+  posit_normalize_ml_distm : posit_normalize port map (
+    in1       => distm,
+    result    => distm_norm,
+    truncated => '0',
+    inf       => open,
+    zero      => open
+    );
 
 
 ---------------------------------------------------------------------------------------------------

@@ -50,11 +50,11 @@ architecture logic of pairhmm is
 
   signal addm_out       : prob;
   signal addm_out_raw   : value_accum;
-  signal addm_out_valid, addm_out_truncated : std_logic;
+  signal addm_out_valid : std_logic;
 
   signal addi_out       : prob;
   signal addi_out_raw   : value_accum;
-  signal addi_out_valid, addi_out_truncated : std_logic;
+  signal addi_out_valid : std_logic;
 
   signal res_acc : prob;
 
@@ -150,56 +150,54 @@ begin
 ---------------------------------------------------------------------------------------------------
 
 -- POSIT NORMALIZATION
-  -- gen_normalize_es2 : if POSIT_ES = 2 generate
-  --   posit_normalize_ml_es2 : posit_normalize port map (
-  --     in1       => resbusm_raw,
-  --     truncated => '0',
-  --     result    => resbusm,
-  --     inf       => open,
-  --     zero      => open
-  --     );
-  --   posit_normalize_il_es2 : posit_normalize port map (
-  --     in1       => resbusi_raw,
-  --     truncated => '0',
-  --     result    => resbusi,
-  --     inf       => open,
-  --     zero      => open
-  --     );
-  -- end generate;
-  -- gen_normalize_es3 : if POSIT_ES = 3 generate
-  --   posit_normalize_ml_es3 : posit_normalize_es3 port map (
-  --     in1       => resbusm_raw,
-  --     truncated => '0',
-  --     result    => resbusm,
-  --     inf       => open,
-  --     zero      => open
-  --     );
-  --   posit_normalize_il_es3 : posit_normalize_es3 port map (
-  --     in1       => resbusi_raw,
-  --     truncated => '0',
-  --     result    => resbusi,
-  --     inf       => open,
-  --     zero      => open
-  --     );
-  -- end generate;
+  gen_normalize_es2 : if POSIT_ES = 2 generate
+    posit_normalize_ml_es2 : posit_normalize port map (
+      in1       => resbusm_raw,
+      truncated => '0',
+      result    => resbusm,
+      inf       => open,
+      zero      => open
+      );
+    posit_normalize_il_es2 : posit_normalize port map (
+      in1       => resbusi_raw,
+      truncated => '0',
+      result    => resbusi,
+      inf       => open,
+      zero      => open
+      );
+  end generate;
+  gen_normalize_es3 : if POSIT_ES = 3 generate
+    posit_normalize_ml_es3 : posit_normalize_es3 port map (
+      in1       => resbusm_raw,
+      truncated => '0',
+      result    => resbusm,
+      inf       => open,
+      zero      => open
+      );
+    posit_normalize_il_es3 : posit_normalize_es3 port map (
+      in1       => resbusi_raw,
+      truncated => '0',
+      result    => resbusi,
+      inf       => open,
+      zero      => open
+      );
+  end generate;
 
-
-
--- pe_out_0_mids_ml_normalize : posit_normalize port map (
---   in1    => pe_outs(0).mids.ml,
---   result => pe_out_mids_ml,
---   truncated => '0',
---   inf    => open,
---   zero   => open
---   );
---
---   pe_out_0_mids_il_normalize : posit_normalize port map (
---     in1    => pe_outs(0).mids.il,
---     result => pe_out_mids_il,
---     truncated => '0',
---     inf    => open,
---     zero   => open
---     );
+  -- pe_out_0_mids_ml_normalize : posit_normalize port map (
+  --   in1       => pe_outs(0).mids.ml,
+  --   result    => pe_out_mids_ml,
+  --   truncated => '0',
+  --   inf       => open,
+  --   zero      => open
+  --   );
+  --
+  -- pe_out_0_mids_il_normalize : posit_normalize port map (
+  --   in1       => pe_outs(0).mids.il,
+  --   result    => pe_out_mids_il,
+  --   truncated => '0',
+  --   inf       => open,
+  --   zero      => open
+  --   );
 
   -- Result bus
   process(cr.clk)
@@ -263,15 +261,14 @@ begin
     end if;
   end process;
 
-
   gen_accumulator_wide : if POSIT_WIDE_ACCUMULATOR = 1 generate
-    signal resaccum_out       : prob;
-    signal resaccum_out_raw   : value_sum;
+    signal resaccum_out                               : prob;
+    signal resaccum_out_raw                           : value_prod_sum;
     signal resaccum_out_valid, resaccum_out_truncated : std_logic;
 
     signal res_acc_zero : std_logic;
 
-    type i_delay_type is array (0 to 4 * PE_ADD_CYCLES - 1) of value;
+    type i_delay_type is array (0 to 4 * PE_ADD_CYCLES - 1) of value_product;
     signal i_delay       : i_delay_type;
     signal i_valid_delay : std_logic_vector(5 * PE_ADD_CYCLES - 1 downto 0);
 
@@ -288,8 +285,7 @@ begin
         in1    => resbusm_raw,
         start  => '1',
         result => addm_out_raw,
-        done   => addm_out_valid,
-        truncated => addm_out_truncated
+        done   => addm_out_valid
         );
       resaccum_i : positaccum_16_raw port map (
         clk    => cr.clk,
@@ -297,20 +293,18 @@ begin
         in1    => resbusi_raw,
         start  => '1',
         result => addi_out_raw,
-        done   => addi_out_valid,
-        truncated => addi_out_truncated
+        done   => addi_out_valid
         );
-      resaccum : positadd_4_raw port map (
-        clk    => cr.clk,
-        in1    => i_delay(4 * PE_ADD_CYCLES - 1),
-        in2    => accum2val(addm_out_raw),
-        start  => addm_addi_valid,
-        result => resaccum_out_raw,
-        done   => resaccum_out_valid,
+      resaccum : positadd_prod_4_raw port map (
+        clk       => cr.clk,
+        in1       => i_delay(4 * PE_ADD_CYCLES - 1),
+        in2       => accum2prod(addm_out_raw),
+        start     => addm_addi_valid,
+        result    => resaccum_out_raw,
+        done      => resaccum_out_valid,
         truncated => resaccum_out_truncated
         );
     end generate;
-
     gen_es3_add : if POSIT_ES = 3 generate
       resaccum_m : positaccum_16_raw_es3 port map (
         clk    => cr.clk,
@@ -318,8 +312,7 @@ begin
         in1    => resbusm_raw,
         start  => '1',
         result => addm_out_raw,
-        done   => addm_out_valid,
-        truncated => addm_out_truncated
+        done   => addm_out_valid
         );
       resaccum_i : positaccum_16_raw_es3 port map (
         clk    => cr.clk,
@@ -327,42 +320,40 @@ begin
         in1    => resbusi_raw,
         start  => '1',
         result => addi_out_raw,
-        done   => addi_out_valid,
-        truncated => addi_out_truncated
+        done   => addi_out_valid
         );
-      resaccum : positadd_4_raw_es3 port map (
-        clk    => cr.clk,
-        in1    => i_delay(4 * PE_ADD_CYCLES - 1),
-        in2    => accum2val(addm_out_raw),
-        start  => addm_addi_valid,
-        result => resaccum_out_raw,
-        done   => resaccum_out_valid,
+      resaccum : positadd_prod_4_raw_es3 port map (
+        clk       => cr.clk,
+        in1       => i_delay(4 * PE_ADD_CYCLES - 1),
+        in2       => accum2prod(addm_out_raw),
+        start     => addm_addi_valid,
+        result    => resaccum_out_raw,
+        done      => resaccum_out_valid,
         truncated => resaccum_out_truncated
         );
     end generate;
 
-
-      -- posit_normalize_1 : posit_normalize port map (
-      --   in1       => accum2val(addm_out_raw),
-      --   truncated => '0',
-      --   result    => addm_out,
-      --   inf       => open,
-      --   zero      => open
-      --   );
-      -- posit_normalize_2 : posit_normalize port map (
-      --   in1       => accum2val(addi_out_raw),
-      --   truncated => '0',
-      --   result    => addi_out,
-      --   inf       => open,
-      --   zero      => open
-      --   );
-      -- posit_normalize_3 : posit_normalize port map (
-      --   in1       => sum2val(resaccum_out_raw),
-      --   truncated => resaccum_out_truncated,
-      --   result    => resaccum_out,
-      --   inf       => open,
-      --   zero      => open
-      --   );
+    -- posit_normalize_1 : posit_normalize port map (
+    --   in1       => accum2val(addm_out_raw),
+    --   truncated => '0',
+    --   result    => addm_out,
+    --   inf       => open,
+    --   zero      => open
+    --   );
+    -- posit_normalize_2 : posit_normalize port map (
+    --   in1       => accum2val(addi_out_raw),
+    --   truncated => '0',
+    --   result    => addi_out,
+    --   inf       => open,
+    --   zero      => open
+    --   );
+    -- posit_normalize_3 : posit_normalize port map (
+    --   in1       => prodsum2val(resaccum_out_raw),
+    --   truncated => resaccum_out_truncated,
+    --   result    => resaccum_out,
+    --   inf       => open,
+    --   zero      => open
+    --   );
 
     process(cr.clk)
       variable rescounter   : integer range 0 to PE_DEPTH + PE_ADD_CYCLES := 0;
@@ -377,7 +368,7 @@ begin
           rescounter    := 0;
         else
           -- Delayed signals:
-          i_delay(0) <= accum2val(addi_out_raw);
+          i_delay(0) <= accum2prod(addi_out_raw);
           for K in 1 to 4 * PE_ADD_CYCLES - 1 loop
             i_delay(K) <= i_delay(K-1);
           end loop;
@@ -433,8 +424,8 @@ begin
     end process;
 
     gen_accum_normalize_es2 : if POSIT_ES = 2 generate
-      posit_normalize_accum_es2 : posit_normalize port map (
-        in1       => sum2val(resaccum_out_raw),
+      posit_normalize_accum_es2 : posit_normalize_prod_sum port map (
+        in1       => resaccum_out_raw,
         truncated => resaccum_out_truncated,
         result    => resaccum_out,
         inf       => open,
@@ -442,8 +433,8 @@ begin
         );
     end generate;
     gen_accum_normalize_es3 : if POSIT_ES = 3 generate
-      posit_normalize_accum_es3 : posit_normalize_es3 port map (
-        in1       => sum2val(resaccum_out_raw),
+      posit_normalize_accum_es3 : posit_normalize_prod_sum_es3 port map (
+        in1       => resaccum_out_raw,
         truncated => resaccum_out_truncated,
         result    => resaccum_out,
         inf       => open,
@@ -454,122 +445,5 @@ begin
     res_acc <= resaccum_out when res_acc_zero = '0' else
                (others => '0');
   end generate;
-  --
-  -- gen_accumulator : if POSIT_WIDE_ACCUMULATOR = 0 generate
-  --   signal addm_ina, addm_inb, addi_ina, addi_inb                         : prob;
-  --   signal addm_ina_valid, addm_inb_valid, addi_ina_valid, addi_inb_valid : std_logic;
-  --
-  --   type i_delay_type is array (0 to 2 * PE_ADD_CYCLES-1) of prob;
-  --   signal i_delay       : i_delay_type;
-  --   signal i_valid_delay : std_logic_vector(2 * PE_ADD_CYCLES - 1 downto 0);
-  --
-  --   signal acc : acc_state := resetting;
-  --
-  --   signal addm_a_b_valid, addi_a_b_valid : std_logic;
-  -- begin
-  --   addm_a_b_valid <= addm_ina_valid and addm_inb_valid;
-  --   addi_a_b_valid <= addi_ina_valid and addi_inb_valid;
-  --
-  --   gen_es2_add : if POSIT_ES = 2 generate
-  --     add_m : positadd_8 port map (
-  --       clk    => cr.clk,
-  --       in1    => addm_ina,
-  --       in2    => addm_inb,
-  --       start  => addm_a_b_valid,
-  --       result => addm_out,
-  --       inf    => posit_infs(0),
-  --       done   => addm_out_valid
-  --       );
-  --     add_i : positadd_8 port map (
-  --       clk    => cr.clk,
-  --       in1    => addi_ina,
-  --       in2    => addi_inb,
-  --       start  => addi_a_b_valid,
-  --       result => addi_out,
-  --       inf    => posit_infs(1),
-  --       done   => addi_out_valid
-  --       );
-  --   end generate;
-  --
-  --   gen_es3_add : if POSIT_ES = 3 generate
-  --     add_m : positadd_8_es3 port map (
-  --       clk    => cr.clk,
-  --       in1    => addm_ina,
-  --       in2    => addm_inb,
-  --       start  => addm_a_b_valid,
-  --       result => addm_out,
-  --       inf    => posit_infs(0),
-  --       done   => addm_out_valid
-  --       );
-  --     add_i : positadd_8_es3 port map (
-  --       clk    => cr.clk,
-  --       in1    => addi_ina,
-  --       in2    => addi_inb,
-  --       start  => addi_a_b_valid,
-  --       result => addi_out,
-  --       inf    => posit_infs(1),
-  --       done   => addi_out_valid
-  --       );
-  --   end generate;
-  --
-  --   process(cr.clk)
-  --     variable rescounter : integer range 0 to PE_DEPTH := 0;
-  --     variable prevlast   : std_logic;
-  --   begin
-  --     if rising_edge(cr.clk) then
-  --       if cr.rst = '1' then
-  --         acc           <= resetting;
-  --         o.score_valid <= '0';
-  --       else
-  --         -- Delayed signals:
-  --         i_valid_delay(0) <= lastlast1;
-  --         i_delay(0)       <= resbusi;
-  --
-  --         for K in 1 to 2*PE_ADD_CYCLES - 1 loop
-  --           i_delay(K)       <= i_delay(K-1);
-  --           i_valid_delay(K) <= i_valid_delay(K-1);
-  --         end loop;
-  --
-  --         -- Small state machine:
-  --         case acc is
-  --           when adding =>
-  --             if lastlast = '0' and prevlast = '1' then
-  --               acc     <= resetting;
-  --               res_rst <= '1';
-  --             end if;
-  --
-  --           when resetting =>
-  --             rescounter := rescounter + 1;
-  --             if rescounter = PE_DEPTH then
-  --               rescounter := 0;
-  --               acc        <= adding;
-  --               res_rst    <= '0';
-  --             end if;
-  --
-  --         end case;
-  --
-  --         prevlast := lastlast1;
-  --
-  --         o.score       <= addi_out;
-  --         o.score_valid <= addi_out_valid;
-  --       end if;
-  --     end if;
-  --   end process;
-  --
-  --   res_acc <= addi_out when res_rst = '0' else
-  --              (others => '0');
-  --
-  --   addm_ina       <= res_acc;
-  --   addm_ina_valid <= '1';
-  --
-  --   addm_inb       <= resbusm;
-  --   addm_inb_valid <= '1';
-  --
-  --   addi_ina       <= addm_out;
-  --   addi_ina_valid <= addm_out_valid;
-  --
-  --   addi_inb       <= i_delay(2*PE_ADD_CYCLES-1);
-  --   addi_inb_valid <= i_valid_delay(2*PE_ADD_CYCLES-1);
-  -- end generate;
 
 end architecture logic;
