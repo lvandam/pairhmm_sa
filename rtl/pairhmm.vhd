@@ -267,11 +267,7 @@ begin
     signal resaccum_out_valid, resaccum_out_truncated : std_logic;
 
     signal res_acc_zero : std_logic;
-
-    type i_delay_type is array (0 to 4 * PE_ADD_CYCLES - 1) of value_product;
-    signal i_delay       : i_delay_type;
     signal i_valid_delay : std_logic_vector(5 * PE_ADD_CYCLES - 1 downto 0);
-
     signal acc : acc_state_wide := resetting;
 
     signal addm_addi_valid : std_logic;
@@ -297,7 +293,7 @@ begin
         );
       resaccum : positadd_prod_4_raw port map (
         clk       => cr.clk,
-        in1       => i_delay(4 * PE_ADD_CYCLES - 1),
+        in1       => accum2prod(addi_out_raw),
         in2       => accum2prod(addm_out_raw),
         start     => addm_addi_valid,
         result    => resaccum_out_raw,
@@ -324,7 +320,7 @@ begin
         );
       resaccum : positadd_prod_4_raw_es3 port map (
         clk       => cr.clk,
-        in1       => i_delay(4 * PE_ADD_CYCLES - 1),
+        in1       => accum2prod(addi_out_raw),
         in2       => accum2prod(addm_out_raw),
         start     => addm_addi_valid,
         result    => resaccum_out_raw,
@@ -332,29 +328,7 @@ begin
         truncated => resaccum_out_truncated
         );
     end generate;
-
-    -- posit_normalize_1 : posit_normalize port map (
-    --   in1       => accum2val(addm_out_raw),
-    --   truncated => '0',
-    --   result    => addm_out,
-    --   inf       => open,
-    --   zero      => open
-    --   );
-    -- posit_normalize_2 : posit_normalize port map (
-    --   in1       => accum2val(addi_out_raw),
-    --   truncated => '0',
-    --   result    => addi_out,
-    --   inf       => open,
-    --   zero      => open
-    --   );
-    -- posit_normalize_3 : posit_normalize port map (
-    --   in1       => prodsum2val(resaccum_out_raw),
-    --   truncated => resaccum_out_truncated,
-    --   result    => resaccum_out,
-    --   inf       => open,
-    --   zero      => open
-    --   );
-
+    
     process(cr.clk)
       variable rescounter   : integer range 0 to PE_DEPTH + PE_ADD_CYCLES := 0;
       variable accumcounter : integer range 0 to 4 * PE_ADD_CYCLES - 1    := 0;
@@ -368,11 +342,6 @@ begin
           rescounter    := 0;
         else
           -- Delayed signals:
-          i_delay(0) <= accum2prod(addi_out_raw);
-          for K in 1 to 4 * PE_ADD_CYCLES - 1 loop
-            i_delay(K) <= i_delay(K-1);
-          end loop;
-
           i_valid_delay(0) <= lastlast1;
           for K in 1 to 5 * PE_ADD_CYCLES - 1 loop
             i_valid_delay(K) <= i_valid_delay(K-1);
