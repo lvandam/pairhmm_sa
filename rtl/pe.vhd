@@ -476,7 +476,7 @@ begin
       );
   end generate;
   gen_es3_add_alpha_beta : if POSIT_ES = 3 generate
-    add_alpha_beta : positadd_prod_4_raw port map (
+    add_alpha_beta : positadd_prod_4_raw_es3 port map (
       clk       => cr.clk,
       in1       => step_raw.trans.almtl,
       in2       => step_raw.trans.beitl,
