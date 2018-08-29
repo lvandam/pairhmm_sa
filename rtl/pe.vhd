@@ -95,7 +95,7 @@ begin
       );
   end generate;
   gen_es3_normalize_initial : if POSIT_ES = 3 generate
-    normalize_initial_es3 : posit_normalize port map (
+    normalize_initial_es3 : posit_normalize_es3 port map (
       in1       => i.initial,
       truncated => '0',
       result    => initial_val,
