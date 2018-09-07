@@ -927,231 +927,231 @@ begin
 
   o <= o_buf;
 
-  -- POSIT DEBUGGING
-  posit_normalize_ml_initial : posit_normalize port map (
-    in1       => step_raw.init.initial,
-    result    => posit_norm.init.initial,
-    truncated => '0',
-    inf       => open,
-    zero      => open
-    );
-  posit_normalize_ml_es31 : posit_normalize_prod port map (
-    in1       => step_raw.trans.almtl,
-    result    => posit_norm.trans.almtl,
-    truncated => '0',
-    inf       => open,
-    zero      => open
-    );
-  posit_normalize_ml_es32 : posit_normalize_prod port map (
-    in1       => step_raw.trans.beitl,
-    result    => posit_norm.trans.beitl,
-    truncated => '0',
-    inf       => open,
-    zero      => open
-    );
-  posit_normalize_ml_es33 : posit_normalize_prod port map (
-    in1       => step_raw.trans.gadtl,
-    result    => posit_norm.trans.gadtl,
-    truncated => '0',
-    inf       => open,
-    zero      => open
-    );
-  posit_normalize_ml_es34 : posit_normalize_prod port map (
-    in1       => (step_raw.trans.demt),
-    result    => posit_norm.trans.demt,
-    truncated => '0',
-    inf       => open,
-    zero      => open
-    );
-  posit_normalize_ml_es35 : posit_normalize_prod port map (
-    in1       => (step_raw.trans.epit),
-    result    => posit_norm.trans.epit,
-    truncated => '0',
-    inf       => open,
-    zero      => open
-    );
-  posit_normalize_ml_es36 : posit_normalize_prod port map (
-    in1       => (step_raw.trans.zeml),
-    result    => posit_norm.trans.zeml,
-    truncated => '0',
-    inf       => open,
-    zero      => open
-    );
-  posit_normalize_ml_es37 : posit_normalize_prod port map (
-    in1       => (step_raw.trans.etdl),
-    result    => posit_norm.trans.etdl,
-    truncated => '0',
-    inf       => open,
-    zero      => open
-    );
-  posit_normalize_ml_es38 : posit_normalize_prod_sum port map (
-    in1       => (step_raw.add.albetl),
-    result    => posit_norm.add.albetl,
-    truncated => posit_truncated(0),
-    inf       => open,
-    zero      => open
-    );
-  -- posit_normalize_ml_es39 : posit_normalize_sum port map (
-  --   in1       => (step_raw.add.albegatl),
-  --   result    => posit_norm.add.albegatl,
+  -- -- -- POSIT DEBUGGING
+  -- posit_normalize_ml_initial : posit_normalize port map (
+  --   in1       => step_raw.init.initial,
+  --   result    => posit_norm.init.initial,
   --   truncated => '0',
   --   inf       => open,
   --   zero      => open
   --   );
-  posit_normalize_ml_es310 : posit_normalize_prod_sum port map (
-    in1       => (step_raw.add.deept),
-    result    => posit_norm.add.deept,
-    truncated => '0',
-    inf       => open,
-    zero      => open
-    );
-  posit_normalize_ml_es311 : posit_normalize_prod_sum port map (
-    in1       => (step_raw.add.zeett),
-    result    => posit_norm.add.zeett,
-    truncated => '0',
-    inf       => open,
-    zero      => open
-    );
-  posit_normalize_ml_es312 : posit_normalize_product_prod_sum_sum port map (
-    in1       => (step_raw.emult.m),
-    result    => posit_norm.emult.m,
-    truncated => posit_truncated(4),
-    inf       => open,
-    zero      => open
-    );
-  posit_normalize_ml_es313 : posit_normalize_prod port map (
-    in1       => (step_raw.emult.i),
-    result    => posit_norm.emult.i,
-    truncated => '0',
-    inf       => open,
-    zero      => open
-    );
-  posit_normalize_ml_es314 : posit_normalize_prod port map (
-    in1       => (step_raw.emult.d),
-    result    => posit_norm.emult.d,
-    truncated => '0',
-    inf       => open,
-    zero      => open
-    );
-  posit_normalize_ml_es410 : posit_normalize port map (
-    in1       => step_raw.init.tmis.alpha,
-    result    => posit_norm.init.tmis.alpha,
-    truncated => '0',
-    inf       => open,
-    zero      => open
-    );
-  posit_normalize_ml_es411 : posit_normalize port map (
-    in1       => step_raw.init.tmis.beta,
-    result    => posit_norm.init.tmis.beta,
-    truncated => '0',
-    inf       => open,
-    zero      => open
-    );
-  posit_normalize_ml_es412 : posit_normalize port map (
-    in1       => step_raw.init.tmis.delta,
-    result    => posit_norm.init.tmis.delta,
-    truncated => '0',
-    inf       => open,
-    zero      => open
-    );
-  posit_normalize_ml_es413 : posit_normalize port map (
-    in1       => step_raw.init.tmis.epsilon,
-    result    => posit_norm.init.tmis.epsilon,
-    truncated => '0',
-    inf       => open,
-    zero      => open
-    );
-  posit_normalize_ml_es414 : posit_normalize port map (
-    in1       => step_raw.init.tmis.zeta,
-    result    => posit_norm.init.tmis.zeta,
-    truncated => '0',
-    inf       => open,
-    zero      => open
-    );
-  posit_normalize_ml_es415 : posit_normalize port map (
-    in1       => step_raw.init.tmis.eta,
-    result    => posit_norm.init.tmis.eta,
-    truncated => '0',
-    inf       => open,
-    zero      => open
-    );
-  posit_normalize_ml_es000 : posit_normalize port map (
-    in1       => step_raw.init.tmis.eta,
-    result    => posit_norm.init.tmis.eta,
-    truncated => '0',
-    inf       => open,
-    zero      => open
-    );
-  posit_normalize_ml_es514_it : posit_normalize port map (
-    in1       => step_raw.init.mids.it,
-    result    => posit_norm.init.mids.it,
-    truncated => '0',
-    inf       => open,
-    zero      => open
-    );
-  posit_normalize_ml_es514_il : posit_normalize port map (
-    in1       => step_raw.init.mids.il,
-    result    => posit_norm.init.mids.il,
-    truncated => '0',
-    inf       => open,
-    zero      => open
-    );
-  posit_normalize_ml_es514_ml : posit_normalize port map (
-    in1       => step_raw.init.mids.ml,
-    result    => posit_norm.init.mids.ml,
-    truncated => '0',
-    inf       => open,
-    zero      => open
-    );
-  posit_normalize_ml_es514_mtl : posit_normalize port map (
-    in1       => step_raw.init.mids.mtl,
-    result    => posit_norm.init.mids.mtl,
-    truncated => '0',
-    inf       => open,
-    zero      => open
-    );
-  posit_normalize_ml_es514_dtl : posit_normalize port map (
-    in1       => step_raw.init.mids.dtl,
-    result    => posit_norm.init.mids.dtl,
-    truncated => '0',
-    inf       => open,
-    zero      => open
-    );
-  posit_normalize_ml_es514_dl : posit_normalize port map (
-    in1       => step_raw.init.mids.dl,
-    result    => posit_norm.init.mids.dl,
-    truncated => '0',
-    inf       => open,
-    zero      => open
-    );
-  posit_normalize_ml_es514_mt123 : posit_normalize port map (
-    in1       => step_raw.init.mids.mt,
-    result    => posit_norm.init.mids.mt,
-    truncated => '0',
-    inf       => open,
-    zero      => open
-    );
-  posit_normalize_ml_es514 : posit_normalize port map (
-    in1       => step_raw.init.mids.itl,
-    result    => posit_norm.init.mids.itl,
-    truncated => '0',
-    inf       => open,
-    zero      => open
-    );
-  posit_normalize_ml_es516 : posit_normalize port map (
-    in1       => step_raw.init.mids.dt,
-    result    => posit_norm.init.mids.dt,
-    truncated => '0',
-    inf       => open,
-    zero      => open
-    );
-  posit_normalize_ml_distm : posit_normalize port map (
-    in1       => distm,
-    result    => distm_norm,
-    truncated => '0',
-    inf       => open,
-    zero      => open
-    );
+  -- posit_normalize_ml_es31 : posit_normalize_prod port map (
+  --   in1       => step_raw.trans.almtl,
+  --   result    => posit_norm.trans.almtl,
+  --   truncated => '0',
+  --   inf       => open,
+  --   zero      => open
+  --   );
+  -- posit_normalize_ml_es32 : posit_normalize_prod port map (
+  --   in1       => step_raw.trans.beitl,
+  --   result    => posit_norm.trans.beitl,
+  --   truncated => '0',
+  --   inf       => open,
+  --   zero      => open
+  --   );
+  -- posit_normalize_ml_es33 : posit_normalize_prod port map (
+  --   in1       => step_raw.trans.gadtl,
+  --   result    => posit_norm.trans.gadtl,
+  --   truncated => '0',
+  --   inf       => open,
+  --   zero      => open
+  --   );
+  -- posit_normalize_ml_es34 : posit_normalize_prod port map (
+  --   in1       => (step_raw.trans.demt),
+  --   result    => posit_norm.trans.demt,
+  --   truncated => '0',
+  --   inf       => open,
+  --   zero      => open
+  --   );
+  -- posit_normalize_ml_es35 : posit_normalize_prod port map (
+  --   in1       => (step_raw.trans.epit),
+  --   result    => posit_norm.trans.epit,
+  --   truncated => '0',
+  --   inf       => open,
+  --   zero      => open
+  --   );
+  -- posit_normalize_ml_es36 : posit_normalize_prod port map (
+  --   in1       => (step_raw.trans.zeml),
+  --   result    => posit_norm.trans.zeml,
+  --   truncated => '0',
+  --   inf       => open,
+  --   zero      => open
+  --   );
+  -- posit_normalize_ml_es37 : posit_normalize_prod port map (
+  --   in1       => (step_raw.trans.etdl),
+  --   result    => posit_norm.trans.etdl,
+  --   truncated => '0',
+  --   inf       => open,
+  --   zero      => open
+  --   );
+  -- posit_normalize_ml_es38 : posit_normalize_prod_sum port map (
+  --   in1       => (step_raw.add.albetl),
+  --   result    => posit_norm.add.albetl,
+  --   truncated => posit_truncated(0),
+  --   inf       => open,
+  --   zero      => open
+  --   );
+  -- -- posit_normalize_ml_es39 : posit_normalize_sum port map (
+  -- --   in1       => (step_raw.add.albegatl),
+  -- --   result    => posit_norm.add.albegatl,
+  -- --   truncated => '0',
+  -- --   inf       => open,
+  -- --   zero      => open
+  -- --   );
+  -- posit_normalize_ml_es310 : posit_normalize_prod_sum port map (
+  --   in1       => (step_raw.add.deept),
+  --   result    => posit_norm.add.deept,
+  --   truncated => '0',
+  --   inf       => open,
+  --   zero      => open
+  --   );
+  -- posit_normalize_ml_es311 : posit_normalize_prod_sum port map (
+  --   in1       => (step_raw.add.zeett),
+  --   result    => posit_norm.add.zeett,
+  --   truncated => '0',
+  --   inf       => open,
+  --   zero      => open
+  --   );
+  -- posit_normalize_ml_es312 : posit_normalize_product_prod_sum_sum port map (
+  --   in1       => (step_raw.emult.m),
+  --   result    => posit_norm.emult.m,
+  --   truncated => posit_truncated(4),
+  --   inf       => open,
+  --   zero      => open
+  --   );
+  -- posit_normalize_ml_es313 : posit_normalize_prod port map (
+  --   in1       => (step_raw.emult.i),
+  --   result    => posit_norm.emult.i,
+  --   truncated => '0',
+  --   inf       => open,
+  --   zero      => open
+  --   );
+  -- posit_normalize_ml_es314 : posit_normalize_prod port map (
+  --   in1       => (step_raw.emult.d),
+  --   result    => posit_norm.emult.d,
+  --   truncated => '0',
+  --   inf       => open,
+  --   zero      => open
+  --   );
+  -- posit_normalize_ml_es410 : posit_normalize port map (
+  --   in1       => step_raw.init.tmis.alpha,
+  --   result    => posit_norm.init.tmis.alpha,
+  --   truncated => '0',
+  --   inf       => open,
+  --   zero      => open
+  --   );
+  -- posit_normalize_ml_es411 : posit_normalize port map (
+  --   in1       => step_raw.init.tmis.beta,
+  --   result    => posit_norm.init.tmis.beta,
+  --   truncated => '0',
+  --   inf       => open,
+  --   zero      => open
+  --   );
+  -- posit_normalize_ml_es412 : posit_normalize port map (
+  --   in1       => step_raw.init.tmis.delta,
+  --   result    => posit_norm.init.tmis.delta,
+  --   truncated => '0',
+  --   inf       => open,
+  --   zero      => open
+  --   );
+  -- posit_normalize_ml_es413 : posit_normalize port map (
+  --   in1       => step_raw.init.tmis.epsilon,
+  --   result    => posit_norm.init.tmis.epsilon,
+  --   truncated => '0',
+  --   inf       => open,
+  --   zero      => open
+  --   );
+  -- posit_normalize_ml_es414 : posit_normalize port map (
+  --   in1       => step_raw.init.tmis.zeta,
+  --   result    => posit_norm.init.tmis.zeta,
+  --   truncated => '0',
+  --   inf       => open,
+  --   zero      => open
+  --   );
+  -- posit_normalize_ml_es415 : posit_normalize port map (
+  --   in1       => step_raw.init.tmis.eta,
+  --   result    => posit_norm.init.tmis.eta,
+  --   truncated => '0',
+  --   inf       => open,
+  --   zero      => open
+  --   );
+  -- posit_normalize_ml_es000 : posit_normalize port map (
+  --   in1       => step_raw.init.tmis.eta,
+  --   result    => posit_norm.init.tmis.eta,
+  --   truncated => '0',
+  --   inf       => open,
+  --   zero      => open
+  --   );
+  -- posit_normalize_ml_es514_it : posit_normalize port map (
+  --   in1       => step_raw.init.mids.it,
+  --   result    => posit_norm.init.mids.it,
+  --   truncated => '0',
+  --   inf       => open,
+  --   zero      => open
+  --   );
+  -- posit_normalize_ml_es514_il : posit_normalize port map (
+  --   in1       => step_raw.init.mids.il,
+  --   result    => posit_norm.init.mids.il,
+  --   truncated => '0',
+  --   inf       => open,
+  --   zero      => open
+  --   );
+  -- posit_normalize_ml_es514_ml : posit_normalize port map (
+  --   in1       => step_raw.init.mids.ml,
+  --   result    => posit_norm.init.mids.ml,
+  --   truncated => '0',
+  --   inf       => open,
+  --   zero      => open
+  --   );
+  -- posit_normalize_ml_es514_mtl : posit_normalize port map (
+  --   in1       => step_raw.init.mids.mtl,
+  --   result    => posit_norm.init.mids.mtl,
+  --   truncated => '0',
+  --   inf       => open,
+  --   zero      => open
+  --   );
+  -- posit_normalize_ml_es514_dtl : posit_normalize port map (
+  --   in1       => step_raw.init.mids.dtl,
+  --   result    => posit_norm.init.mids.dtl,
+  --   truncated => '0',
+  --   inf       => open,
+  --   zero      => open
+  --   );
+  -- posit_normalize_ml_es514_dl : posit_normalize port map (
+  --   in1       => step_raw.init.mids.dl,
+  --   result    => posit_norm.init.mids.dl,
+  --   truncated => '0',
+  --   inf       => open,
+  --   zero      => open
+  --   );
+  -- posit_normalize_ml_es514_mt123 : posit_normalize port map (
+  --   in1       => step_raw.init.mids.mt,
+  --   result    => posit_norm.init.mids.mt,
+  --   truncated => '0',
+  --   inf       => open,
+  --   zero      => open
+  --   );
+  -- posit_normalize_ml_es514 : posit_normalize port map (
+  --   in1       => step_raw.init.mids.itl,
+  --   result    => posit_norm.init.mids.itl,
+  --   truncated => '0',
+  --   inf       => open,
+  --   zero      => open
+  --   );
+  -- posit_normalize_ml_es516 : posit_normalize port map (
+  --   in1       => step_raw.init.mids.dt,
+  --   result    => posit_norm.init.mids.dt,
+  --   truncated => '0',
+  --   inf       => open,
+  --   zero      => open
+  --   );
+  -- posit_normalize_ml_distm : posit_normalize port map (
+  --   in1       => distm,
+  --   result    => distm_norm,
+  --   truncated => '0',
+  --   inf       => open,
+  --   zero      => open
+  --   );
 
 
 ---------------------------------------------------------------------------------------------------

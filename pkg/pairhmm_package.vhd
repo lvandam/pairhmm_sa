@@ -37,6 +37,7 @@ package pairhmm_package is
 
   constant pe_y_data_regs_empty : pe_y_data_regs_type := (others => pe_y_data_empty);
 
+
   type ybus_type is record
     addr : unsigned(log2e(PAIRHMM_NUM_PES) downto 0);
     data : pe_y_data_type;
@@ -80,4 +81,32 @@ package pairhmm_package is
   type acc_state is (adding, resetting);
   type acc_state_wide is (adding, accumulating, reset_accumulator, resetting);
 
+  function bp32slv3 (a      : in pe_y_data_type) return std_logic_vector;
+
 end package;
+
+package body pairhmm_package is
+  function bp32slv3 (a : in pe_y_data_type) return std_logic_vector is
+      variable outvec : std_logic_vector(PE_DEPTH * BP_SIZE - 1 downto 0);
+  begin
+      outvec((PE_DEPTH - 0) * BP_SIZE - 1 downto (PE_DEPTH - 1) * BP_SIZE) := bpslv3(a(PE_DEPTH - 1));
+      outvec((PE_DEPTH - 1) * BP_SIZE - 1 downto (PE_DEPTH - 2) * BP_SIZE) := bpslv3(a(PE_DEPTH - 2));
+      outvec((PE_DEPTH - 2) * BP_SIZE - 1 downto (PE_DEPTH - 3) * BP_SIZE) := bpslv3(a(PE_DEPTH - 3));
+      outvec((PE_DEPTH - 3) * BP_SIZE - 1 downto (PE_DEPTH - 4) * BP_SIZE) := bpslv3(a(PE_DEPTH - 4));
+      outvec((PE_DEPTH - 4) * BP_SIZE - 1 downto (PE_DEPTH - 5) * BP_SIZE) := bpslv3(a(PE_DEPTH - 5));
+      outvec((PE_DEPTH - 5) * BP_SIZE - 1 downto (PE_DEPTH - 6) * BP_SIZE) := bpslv3(a(PE_DEPTH - 6));
+      outvec((PE_DEPTH - 6) * BP_SIZE - 1 downto (PE_DEPTH - 7) * BP_SIZE) := bpslv3(a(PE_DEPTH - 7));
+      outvec((PE_DEPTH - 7) * BP_SIZE - 1 downto (PE_DEPTH - 8) * BP_SIZE) := bpslv3(a(PE_DEPTH - 8));
+      outvec((PE_DEPTH - 8) * BP_SIZE - 1 downto (PE_DEPTH - 9) * BP_SIZE) := bpslv3(a(PE_DEPTH - 9));
+      outvec((PE_DEPTH - 9) * BP_SIZE - 1 downto (PE_DEPTH - 10) * BP_SIZE) := bpslv3(a(PE_DEPTH - 10));
+      outvec((PE_DEPTH - 10) * BP_SIZE - 1 downto (PE_DEPTH - 11) * BP_SIZE) := bpslv3(a(PE_DEPTH - 11));
+      outvec((PE_DEPTH - 11) * BP_SIZE - 1 downto (PE_DEPTH - 12) * BP_SIZE) := bpslv3(a(PE_DEPTH - 12));
+      outvec((PE_DEPTH - 12) * BP_SIZE - 1 downto (PE_DEPTH - 13) * BP_SIZE) := bpslv3(a(PE_DEPTH - 13));
+      outvec((PE_DEPTH - 13) * BP_SIZE - 1 downto (PE_DEPTH - 14) * BP_SIZE) := bpslv3(a(PE_DEPTH - 14));
+      outvec((PE_DEPTH - 14) * BP_SIZE - 1 downto (PE_DEPTH - 15) * BP_SIZE) := bpslv3(a(PE_DEPTH - 15));
+      outvec((PE_DEPTH - 15) * BP_SIZE - 1 downto (PE_DEPTH - 16) * BP_SIZE) := bpslv3(a(PE_DEPTH - 16));
+
+      return outvec;
+  end function bp32slv3;
+
+end package body pairhmm_package;

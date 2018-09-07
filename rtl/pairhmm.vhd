@@ -23,7 +23,9 @@ entity pairhmm is
   port (
     cr : in  cr_in;
     i  : in  pairhmm_in;
-    o  : out pairhmm_out
+    o  : out pairhmm_out;
+    resaccm : out std_logic_vector(31 downto 0);
+    resacci : out std_logic_vector(31 downto 0)
     );
 end entity pairhmm;
 
@@ -34,8 +36,6 @@ architecture logic of pairhmm is
 
   signal pe_ins  : pe_ins_type;
   signal pe_outs : pe_outs_type;
-
-  signal en : std_logic;
 
   signal x : x_array_type := x_array_empty;
 
@@ -72,7 +72,10 @@ architecture logic of pairhmm is
 
   signal pe_out_mids_ml, pe_out_mids_il : std_logic_vector(31 downto 0);
 
+  signal en: std_logic;
 begin
+
+    en <= '1';
 
   -- Connect input to the input register before the first PE
   pe_ins(0).en      <= pairhmm_in_reg.en;
@@ -199,6 +202,9 @@ begin
   --   zero      => open
   --   );
 
+    resaccm <= resbusm;
+    resacci <= resbusi;
+
   -- Result bus
   process(cr.clk)
     variable vbusm                : value;
@@ -271,13 +277,16 @@ begin
     signal acc : acc_state_wide := resetting;
 
     signal addm_addi_valid : std_logic;
+
+    signal accum_reset : std_logic;
   begin
     addm_addi_valid <= addm_out_valid and addi_out_valid;
+    accum_reset <= res_rst or cr.rst;
 
     gen_es2_add : if POSIT_ES = 2 generate
       resaccum_m : positaccum_16_raw port map (
         clk    => cr.clk,
-        rst    => res_rst,
+        rst    => accum_reset,
         in1    => resbusm_raw,
         start  => '1',
         result => addm_out_raw,
@@ -285,7 +294,7 @@ begin
         );
       resaccum_i : positaccum_16_raw port map (
         clk    => cr.clk,
-        rst    => res_rst,
+        rst    => accum_reset,
         in1    => resbusi_raw,
         start  => '1',
         result => addi_out_raw,
@@ -304,7 +313,7 @@ begin
     gen_es3_add : if POSIT_ES = 3 generate
       resaccum_m : positaccum_16_raw_es3 port map (
         clk    => cr.clk,
-        rst    => res_rst,
+        rst    => accum_reset,
         in1    => resbusm_raw,
         start  => '1',
         result => addm_out_raw,
@@ -312,7 +321,7 @@ begin
         );
       resaccum_i : positaccum_16_raw_es3 port map (
         clk    => cr.clk,
-        rst    => res_rst,
+        rst    => accum_reset,
         in1    => resbusi_raw,
         start  => '1',
         result => addi_out_raw,
@@ -328,7 +337,7 @@ begin
         truncated => resaccum_out_truncated
         );
     end generate;
-    
+
     process(cr.clk)
       variable rescounter   : integer range 0 to PE_DEPTH + PE_ADD_CYCLES := 0;
       variable accumcounter : integer range 0 to 4 * PE_ADD_CYCLES - 1    := 0;
